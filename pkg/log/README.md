@@ -1,6 +1,6 @@
 # Log
 
-This is a simple logging library for Kubernetes. It aims to be a more strict, focused, handy and performant alternative to [Klog](github.com/kubernetes/klog).
+This is a simple logging library for Kubernetes. It aims to be a more strict, focused, handy and performant alternative to [Klog](https://github.com/kubernetes/klog).
 
 ## Output format
 
