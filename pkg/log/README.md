@@ -82,7 +82,8 @@ V0125 00:15:15.525108 1:2741:my_service:ba6d2b0b handler.go:116] "received user 
 
 ## API
 
-TODD
+### Differences
+ - `Fatal*` log methods terminate the process with `os.Exit(1)` to reflect the behaviour of [standard Go logger](https://pkg.go.dev/log#Logger.Fatal), because that's what Go users expect. This behaviour can be overriden with `PostFatalAction` option.
 
 ## Compared to klog
 

@@ -1,0 +1,8 @@
+goos: linux
+goarch: amd64
+pkg: github.com/deckhouse/sds-common-lib/pkg/log
+cpu: 12th Gen Intel(R) Core(TM) i7-1270P
+Benchmark/log-16         	     164	   6734637 ns/op	  421537 B/op	    8782 allocs/op
+Benchmark/klog-16        	      40	  26932482 ns/op	18028854 B/op	  183605 allocs/op
+PASS
+ok  	github.com/deckhouse/sds-common-lib/pkg/log	3.013s
