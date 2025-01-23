@@ -14,26 +14,15 @@ var LogDst io.Writer = os.Stderr
 
 // Opinionated Deckhouse-specific [slog.Handler].
 type Handler struct {
-	cfg   Config
-	w     slog.Handler
-	level *slog.LevelVar
+	cfg Config
+	w   slog.Handler
 }
 
 // Initializes new handler with opts.
 // Use zero [Config] for default handler.
 func NewHandler(cfg Config) *Handler {
-	h := &Handler{cfg: cfg, level: &slog.LevelVar{}}
-	if cfg.Format == FormatText {
-		h.w = slog.NewTextHandler(LogDst, &slog.HandlerOptions{
-			AddSource: cfg.Callsite,
-			Level:     h.level,
-		})
-	} else {
-		h.w = slog.NewJSONHandler(LogDst, &slog.HandlerOptions{
-			AddSource: cfg.Callsite,
-			Level:     h.level,
-		})
-	}
+	h := &Handler{cfg: cfg}
+	h.init()
 	return h
 }
 
@@ -62,5 +51,21 @@ func (h *Handler) Config() Config {
 }
 
 func (h *Handler) UpdateConfig(cfg Config) {
-	*h = *NewHandler(cfg)
+	h.cfg = cfg
+	h.init()
+}
+
+func (h *Handler) init() {
+	cfg := h.cfg
+	if cfg.Format == FormatText {
+		h.w = slog.NewTextHandler(LogDst, &slog.HandlerOptions{
+			AddSource: cfg.Callsite,
+			Level:     slog.Level(cfg.Level),
+		})
+	} else {
+		h.w = slog.NewJSONHandler(LogDst, &slog.HandlerOptions{
+			AddSource: cfg.Callsite,
+			Level:     slog.Level(cfg.Level),
+		})
+	}
 }
