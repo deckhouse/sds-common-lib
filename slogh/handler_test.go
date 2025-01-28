@@ -2,9 +2,11 @@ package slogh_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -15,7 +17,6 @@ import (
 func TestDefaultLogger(t *testing.T) {
 	sb := &strings.Builder{}
 	mockLogDst(t, sb)
-
 	log := slog.New(slogh.NewHandler(slogh.Config{}))
 
 	if log.Enabled(context.TODO(), slog.LevelDebug) {
@@ -56,21 +57,19 @@ func TestDefaultLogger(t *testing.T) {
 }
 
 func TestHandlerConfig(t *testing.T) {
-	cfg := slogh.Config{}
 	h := slogh.NewHandler(slogh.Config{})
 
-	// test defaults
+	someCfg := slogh.Config{Level: slogh.LevelWarn, Format: slogh.FormatText, Callsite: true}
 
-	data := map[string]string{"level": "WARN", "format": "text", "callsite": "true"}
+	data := someCfg.MarshalData()
 
 	// repeating a few times won't harm
 	for i := 0; i < 5; i++ {
-
-		if err := cfg.UnmarshalData(data); err != nil {
+		if err := h.UpdateConfigData(data); err != nil {
 			t.Fatal(err)
 		}
 
-		h.UpdateConfig(cfg)
+		cfg := h.Config()
 
 		if cfg.Format != slogh.FormatText {
 			t.Fatalf("expected Format to be %s, fot %s", slogh.FormatText, cfg.Format)
@@ -84,9 +83,69 @@ func TestHandlerConfig(t *testing.T) {
 		if !maps.Equal(data, data2) {
 			t.Fatalf("expected data to be the same after unmarshal-marshal, got diff: %s", cmp.Diff(data, data2))
 		}
-
 	}
 }
+
+func TestRender(t *testing.T) {
+	sb := &strings.Builder{}
+	mockLogDst(t, sb)
+	h := slogh.NewHandler(slogh.Config{
+		Render: true,
+	})
+	log := slog.New(h)
+
+	t.Run("Render", func(t *testing.T) {
+		log.Info("error happened 'a' times with 'bb', 'x', '': 'err'", "a", 5, "bb", true, "err", fmt.Errorf("test error"))
+
+		expected := regexp.MustCompile(
+			`{"time":"[^"]*","level":"INFO","msg":"error happened 5 times with true, 'x', '': test error","a":5,"bb":true,"err":"test error"}`,
+		)
+		if actual := sb.String(); !expected.Match([]byte(actual)) {
+			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
+		}
+	})
+
+	sb.Reset()
+
+	t.Run("Render with StringValues", func(t *testing.T) {
+		h.UpdateConfig(slogh.Config{
+			Render:       true,
+			StringValues: true,
+		})
+
+		log.With("s", "").Info("error happened 'a' times with 'bb', 'x', '': 'err'", "a", 5, "bb", true, "err", fmt.Errorf("test error"))
+
+		expected := regexp.MustCompile(
+			`{"time":"[^"]*","level":"INFO","msg":"error happened 5 times with true, 'x', '': test error","s":"","a":"5","bb":"true","err":"test error"}`,
+		)
+		if actual := sb.String(); !expected.Match([]byte(actual)) {
+			t.Fatalf("\nexpected pattern:                      %s\ngot: %s", expected, actual)
+		}
+	})
+}
+
+// func TestFileWatcher(t *testing.T) {
+// 	configPath := filepath.Join(t.TempDir(), "config.ini")
+
+// 	if err := os.WriteFile(
+// 		configPath,
+// 		[]byte("level=debug\n"),
+// 		os.FileMode(os.O_CREATE|os.O_TRUNC),
+// 	); err != nil {
+// 		t.Fatal("failed creating a temp config file")
+// 	}
+
+// 	sb := &strings.Builder{}
+// 	mockLogDst(t, sb)
+// 	h := slogh.NewHandler(slogh.Config{})
+// 	log := slog.New(h)
+
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	t.Cleanup(cancel)
+
+// 	go slogh.RunConfigFileWatcher(ctx, configPath, h.UpdateConfigData, nil)
+
+// }
 
 func mockLogDst(t *testing.T, newDst io.Writer) {
 	logDst := slogh.LogDst
