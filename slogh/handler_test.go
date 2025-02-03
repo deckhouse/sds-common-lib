@@ -191,7 +191,7 @@ func TestCustomizedLogger(t *testing.T) {
 			func(log *slog.Logger) {
 				log.Info("x")
 			},
-			assertAttr("source", nil),
+			assertAttr(slog.SourceKey, nil),
 		)
 	})
 
@@ -233,6 +233,8 @@ func TestCustomizedLogger(t *testing.T) {
 }
 
 func TestHandlerConfigMarshaling(t *testing.T) {
+	t.Parallel()
+
 	h := NewHandler(Config{})
 
 	someCfg := Config{Level: LevelWarn, Format: FormatText, Callsite: CallsiteDisabled}
@@ -265,6 +267,8 @@ func TestHandlerConfigMarshaling(t *testing.T) {
 }
 
 func TestFileWatcher(t *testing.T) {
+	t.Parallel()
+
 	// should be small (<=1s), but increase this to prevent timeouts when debugging
 	timeoutMultiplier := 2 * time.Second
 
@@ -471,12 +475,12 @@ func assertAttr(k string, v any) msgAssert {
 }
 
 func assertLevel(l string) msgAssert {
-	return assertAttr("level", l)
+	return assertAttr(slog.LevelKey, l)
 }
 func assertMsg(m string) msgAssert {
-	return assertAttr("msg", m)
+	return assertAttr(slog.MessageKey, m)
 }
 
 func assertSource() msgAssert {
-	return assertAttrKey("source")
+	return assertAttrKey(slog.SourceKey)
 }

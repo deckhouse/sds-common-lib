@@ -113,11 +113,19 @@ func (h *Handler) init(cfg Config) {
 	}
 
 	opts.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-
-		if len(groups) == 0 && a.Key == slog.LevelKey {
-
-			return slog.String(a.Key, Level(a.Value.Any().(slog.Level)).String())
-			// print(a.Value.String())
+		// handle built-ins
+		if len(groups) == 0 {
+			switch a.Key {
+			case slog.LevelKey:
+				// avoid "DEBUG-N"-like level rendering
+				return slog.String(a.Key, Level(a.Value.Any().(slog.Level)).String())
+			case slog.MessageKey:
+				fallthrough
+			case slog.TimeKey:
+				fallthrough
+			case slog.SourceKey:
+				return a
+			}
 		}
 
 		if cfg.StringValues == StringValuesEnabled {
