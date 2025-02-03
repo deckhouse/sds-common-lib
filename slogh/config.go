@@ -2,7 +2,9 @@ package slogh
 
 import (
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -25,6 +27,9 @@ type Config struct {
 	// All values should be stringed before appearing in logs,
 	// e.g. `true` should become `"true"`
 	StringValues bool
+
+	// for testing purposes
+	logDst io.Writer
 }
 
 func (cfg *Config) MarshalData() map[string]string {
@@ -50,34 +55,32 @@ func (cfg *Config) UnmarshalData(data map[string]string) (err error) {
 		}
 	}()
 
-	if textValue, ok := data[DataKeyLevel]; ok {
-		if err = cfg.Level.UnmarshalText(textValue); err != nil {
-			return err
-		}
-	}
+	for k, v := range data {
+		k := strings.TrimSpace(strings.ToLower(k))
 
-	if textValue, ok := data[DataKeyFormat]; ok {
-		if err = cfg.Format.UnmarshalText(textValue); err != nil {
-			return err
+		switch k {
+		case DataKeyLevel:
+			if err = cfg.Level.UnmarshalText(v); err != nil {
+				return err
+			}
+		case DataKeyFormat:
+			if err = cfg.Format.UnmarshalText(v); err != nil {
+				return err
+			}
+		case DataKeyCallsite:
+			if cfg.Callsite, err = strconv.ParseBool(v); err != nil {
+				return err
+			}
+		case DataKeyRender:
+			if cfg.Render, err = strconv.ParseBool(v); err != nil {
+				return err
+			}
+		case DataKeyStringValues:
+			if cfg.StringValues, err = strconv.ParseBool(v); err != nil {
+				return err
+			}
 		}
-	}
 
-	if textValue, ok := data[DataKeyCallsite]; ok {
-		if cfg.Callsite, err = strconv.ParseBool(textValue); err != nil {
-			return err
-		}
-	}
-
-	if textValue, ok := data[DataKeyRender]; ok {
-		if cfg.Render, err = strconv.ParseBool(textValue); err != nil {
-			return err
-		}
-	}
-
-	if textValue, ok := data[DataKeyStringValues]; ok {
-		if cfg.StringValues, err = strconv.ParseBool(textValue); err != nil {
-			return err
-		}
 	}
 
 	return nil

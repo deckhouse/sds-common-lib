@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// TODO: avoid "DEBUG-XXX" concatenation and write just "XXX"
 const (
 	LevelDebug Level = -4
 	LevelInfo  Level = 0
@@ -35,7 +36,7 @@ func (l Level) String() string {
 func (l *Level) UnmarshalText(s string) error {
 	s = strings.TrimSpace(strings.ToUpper(s))
 	switch s {
-	case "DEBUG", "D", "TRACE", "VERBOSE":
+	case "DEBUG", "D":
 		*l = LevelDebug
 	case "INFO", "I":
 		*l = LevelInfo

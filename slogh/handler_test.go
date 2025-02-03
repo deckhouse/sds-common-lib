@@ -1,23 +1,26 @@
-package slogh_test
+package slogh
 
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"maps"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/deckhouse/sds-common-lib/slogh"
+	"github.com/deckhouse/sds-common-lib/mock"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestDefaultLogger(t *testing.T) {
 	sb := &strings.Builder{}
-	mockLogDst(t, sb)
-	log := slog.New(slogh.NewHandler(slogh.Config{}))
+	log := slog.New(NewHandler(Config{
+		logDst: sb,
+	}))
 
 	if log.Enabled(context.TODO(), slog.LevelDebug) {
 		t.Errorf("expected debug level to be disabled")
@@ -57,9 +60,9 @@ func TestDefaultLogger(t *testing.T) {
 }
 
 func TestHandlerConfig(t *testing.T) {
-	h := slogh.NewHandler(slogh.Config{})
+	h := NewHandler(Config{})
 
-	someCfg := slogh.Config{Level: slogh.LevelWarn, Format: slogh.FormatText, Callsite: true}
+	someCfg := Config{Level: LevelWarn, Format: FormatText, Callsite: true}
 
 	data := someCfg.MarshalData()
 
@@ -71,12 +74,12 @@ func TestHandlerConfig(t *testing.T) {
 
 		cfg := h.Config()
 
-		if cfg.Format != slogh.FormatText {
-			t.Fatalf("expected Format to be %s, fot %s", slogh.FormatText, cfg.Format)
+		if cfg.Format != FormatText {
+			t.Fatalf("expected Format to be %s, fot %s", FormatText, cfg.Format)
 		}
 
-		if cfg.Level != slogh.LevelWarn {
-			t.Fatalf("expected Level to be %s, fot %s", slogh.LevelWarn, cfg.Level)
+		if cfg.Level != LevelWarn {
+			t.Fatalf("expected Level to be %s, fot %s", LevelWarn, cfg.Level)
 		}
 
 		data2 := cfg.MarshalData()
@@ -88,13 +91,37 @@ func TestHandlerConfig(t *testing.T) {
 
 func TestRender(t *testing.T) {
 	sb := &strings.Builder{}
-	mockLogDst(t, sb)
-	h := slogh.NewHandler(slogh.Config{
-		Render: true,
+	h := NewHandler(Config{
+		logDst: sb,
 	})
 	log := slog.New(h)
 
+	mockCfg := func(t *testing.T, cfg Config) {
+		origCfg := h.Config()
+		t.Cleanup(func() {
+			h.UpdateConfig(origCfg)
+			sb.Reset()
+		})
+		cfg.logDst = sb
+		h.UpdateConfig(cfg)
+	}
+
+	t.Run("No render", func(t *testing.T) {
+		log.Info("raw: 'x'", "x", 5)
+
+		expected := regexp.MustCompile(
+			`{"time":"[^"]*","level":"INFO","msg":"raw: 'x'","x":5}`,
+		)
+		if actual := sb.String(); !expected.Match([]byte(actual)) {
+			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
+		}
+	})
+
 	t.Run("Render", func(t *testing.T) {
+		mockCfg(t, Config{
+			Render: true,
+		})
+
 		log.Info("error happened 'a' times with 'bb', 'x', '': 'err'", "a", 5, "bb", true, "err", fmt.Errorf("test error"))
 
 		expected := regexp.MustCompile(
@@ -105,10 +132,8 @@ func TestRender(t *testing.T) {
 		}
 	})
 
-	sb.Reset()
-
 	t.Run("Render with StringValues", func(t *testing.T) {
-		h.UpdateConfig(slogh.Config{
+		mockCfg(t, Config{
 			Render:       true,
 			StringValues: true,
 		})
@@ -122,33 +147,152 @@ func TestRender(t *testing.T) {
 			t.Fatalf("\nexpected pattern:                      %s\ngot: %s", expected, actual)
 		}
 	})
+
+	t.Run("Render single quote", func(t *testing.T) {
+		mockCfg(t, Config{
+			Render:       true,
+			StringValues: true,
+		})
+		log.Info("'A' isn't even", "A", 5, "a", 6)
+		expected := regexp.MustCompile(
+			`{"time":"[^"]*","level":"INFO","msg":"5 isn't even","A":"5","a":"6"}`,
+		)
+		if actual := sb.String(); !expected.Match([]byte(actual)) {
+			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
+		}
+
+	})
 }
 
-// func TestFileWatcher(t *testing.T) {
-// 	configPath := filepath.Join(t.TempDir(), "config.ini")
+func TestFileWatcher(t *testing.T) {
+	// should be small (<=1s), but increase this to prevent timeouts when debugging
+	timeoutMultiplier := 200000 * time.Second
 
-// 	if err := os.WriteFile(
-// 		configPath,
-// 		[]byte("level=debug\n"),
-// 		os.FileMode(os.O_CREATE|os.O_TRUNC),
-// 	); err != nil {
-// 		t.Fatal("failed creating a temp config file")
-// 	}
+	configPath := filepath.Join(t.TempDir(), "log.cfg")
 
-// 	sb := &strings.Builder{}
-// 	mockLogDst(t, sb)
-// 	h := slogh.NewHandler(slogh.Config{})
-// 	log := slog.New(h)
+	// create file
+	if err := os.WriteFile(
+		configPath,
+		[]byte("level=debug\n"),
+		0644,
+	); err != nil {
+		t.Fatalf("failed creating new file %s", configPath)
+	}
 
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	t.Cleanup(cancel)
+	sb := &strings.Builder{}
+	h := NewHandler(Config{logDst: sb})
+	log := slog.New(h)
 
-// 	go slogh.RunConfigFileWatcher(ctx, configPath, h.UpdateConfigData, nil)
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	watcherDone := make(chan struct{})
+	ownLog := &strings.Builder{}
+	t.Cleanup(func() {
+		ctxCancel()
+		<-watcherDone
+		if t.Failed() {
+			t.Logf("Watcher's own log:\n%s", ownLog.String())
+		}
+	})
 
-// }
+	// act
+	log.Debug("test log1")
+	if sb.Len() != 0 {
+		t.Fatalf("unexpected write to log: %s", sb.String())
+	}
 
-func mockLogDst(t *testing.T, newDst io.Writer) {
-	logDst := slogh.LogDst
-	slogh.LogDst = newDst
-	t.Cleanup(func() { slogh.LogDst = logDst })
+	ownLogMock := mock.NewWriter(ownLog)
+	ownLogMock.Pause()
+	t.Cleanup(func() {
+		ownLogMock.Unpause()
+	})
+
+	retryInterval := time.Millisecond * 200
+	go func() {
+		RunConfigFileWatcher(
+			ctx,
+			configPath,
+			h.UpdateConfigData,
+			&ConfigFileWatcherOptions{
+				OwnLogger: slog.New(
+					NewHandler(Config{Level: LevelDebug, logDst: ownLogMock}),
+				).With("logger", "FileWatcher"),
+				RetryInterval: &retryInterval,
+			},
+		)
+		watcherDone <- struct{}{}
+	}()
+
+	// wait for watcher to start
+	startWatchTimeout := timeoutMultiplier
+	tctx, tctxCancel := context.WithTimeout(ctx, startWatchTimeout)
+	t.Cleanup(tctxCancel)
+	if found := ownLogMock.WaitForString(tctx, "started watching"); !found {
+		t.Fatalf("expected watcher to start watching in %s, but it didn't", startWatchTimeout.String())
+	}
+
+	// act
+	log.Debug("test log2")
+	if sb.Len() == 0 {
+		t.Fatalf("expected Debug level to be enabled")
+	}
+	sb.Reset()
+
+	// append to file
+	if err := os.WriteFile(
+		configPath,
+		[]byte("\n\n\nLevel = `Info`\nunknown = x\n123\n"),
+		os.ModeAppend|0644,
+	); err != nil {
+		t.Fatalf("failed writing to file %s", configPath)
+	}
+
+	// wait for reload
+	reloadTimeout := timeoutMultiplier
+	tctx, tctxCancel = context.WithTimeout(ctx, reloadTimeout)
+	t.Cleanup(tctxCancel)
+	if found := ownLogMock.WaitForString(tctx, "reloaded config"); !found {
+		t.Fatalf("expected watcher to reload config in %s, but it didn't", reloadTimeout.String())
+	}
+
+	// act
+	log.Debug("test log3")
+	if sb.Len() != 0 {
+		t.Fatalf("unexpected write to log: %s", sb.String())
+	}
+
+	// remove file
+	if err := os.Remove(configPath); err != nil {
+		t.Fatalf("failed removing file %s", configPath)
+	}
+
+	// wait for loosing subscription
+	subscriptionLostTimeout := timeoutMultiplier
+	tctx, tctxCancel = context.WithTimeout(ctx, subscriptionLostTimeout)
+	t.Cleanup(tctxCancel)
+	if found := ownLogMock.WaitForString(tctx, "subscription lost: reloading watcher"); !found {
+		t.Fatalf("expected watcher to report lost subscription in %s, but it didn't", subscriptionLostTimeout.String())
+	}
+
+	// recreate file
+	if err := os.WriteFile(
+		configPath,
+		[]byte("\nLEVEL = DEBUG\n"),
+		0644,
+	); err != nil {
+		t.Fatalf("failed creating file %s", configPath)
+	}
+
+	// wait for subscription to recover
+	tctx, tctxCancel = context.WithTimeout(ctx, startWatchTimeout)
+	t.Cleanup(tctxCancel)
+	if found := ownLogMock.WaitForString(tctx, "started watching"); !found {
+		t.Fatalf("expected watcher to start watching again in %s, but it didn't", startWatchTimeout.String())
+	}
+
+	// act
+	sb.Reset()
+	log.Debug("test log4")
+	if sb.Len() == 0 {
+		t.Fatalf("expected Debug level to be enabled after log config recreate")
+	}
 }

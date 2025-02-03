@@ -2,16 +2,13 @@ package slogh
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"os"
 	"strings"
+	"unsafe"
 )
 
 var _ slog.Handler = &Handler{}
-
-// for testing purposes
-var LogDst io.Writer = os.Stderr
 
 // Opinionated Deckhouse-specific [slog.Handler].
 type Handler struct {
@@ -34,54 +31,9 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	var entered bool
-	var start int
-
-	msgb := &strings.Builder{}
-	msgb.Grow(len(r.Message))
-
-	var skip bool
-	for i := 0; i < len(r.Message); i++ {
-		c := r.Message[i]
-
-		if c != '\'' {
-			if !skip {
-				msgb.WriteByte(c)
-			}
-			continue
-		}
-
-		if !entered {
-			// save position
-			start = i
-			skip = true
-		} else {
-			// replace in r.Message: "_'KKK'_" => "_VVV_"
-			key := r.Message[start+1 : i]
-			var value string
-			var found bool
-			r.Attrs(func(a slog.Attr) bool {
-				if a.Key == key {
-					value = a.Value.String()
-					found = true
-					return false
-				}
-				return true
-			})
-			if found {
-				msgb.WriteString(value)
-			} else {
-				msgb.WriteString("'")
-				msgb.WriteString(key)
-				msgb.WriteString("'")
-			}
-			skip = false
-		}
-
-		entered = !entered
+	if h.cfg.Render {
+		h.renderRecord(&r)
 	}
-
-	r.Message = msgb.String()
 
 	return h.w.Handle(ctx, r)
 }
@@ -120,6 +72,10 @@ func (h *Handler) UpdateConfigData(data map[string]string) error {
 }
 
 func (h *Handler) init() {
+	if h.cfg.logDst == nil {
+		h.cfg.logDst = os.Stderr
+	}
+
 	cfg := h.cfg
 
 	opts := &slog.HandlerOptions{
@@ -134,8 +90,72 @@ func (h *Handler) init() {
 	}
 
 	if cfg.Format == FormatText {
-		h.w = slog.NewTextHandler(LogDst, opts)
+		h.w = slog.NewTextHandler(cfg.logDst, opts)
 	} else {
-		h.w = slog.NewJSONHandler(LogDst, opts)
+		h.w = slog.NewJSONHandler(cfg.logDst, opts)
+	}
+}
+
+func (h *Handler) renderRecord(r *slog.Record) {
+	var entered bool
+	var start int
+	var msgb *strings.Builder
+	var skip bool
+	rmsg := unsafe.Slice(unsafe.StringData(r.Message), len(r.Message))
+
+	for i := 0; i < len(rmsg); i++ {
+		c := rmsg[i]
+
+		if c != '\'' {
+			if !skip && msgb != nil {
+				msgb.WriteByte(c)
+			}
+			continue
+		}
+
+		if !entered {
+			// quote found - initialize
+			if msgb == nil {
+				msgb = &strings.Builder{}
+				msgb.Grow(len(rmsg) * 2)
+				msgb.Write(rmsg[:i])
+			}
+
+			// save position
+			start = i
+			skip = true
+		} else {
+			// replace: "_'KKK'_" => "_VVV_"
+			key := rmsg[start+1 : i]
+			var value string
+			var found bool
+			r.Attrs(func(a slog.Attr) bool {
+				if a.Key == string(key) {
+					value = a.Value.String()
+					found = true
+					return false
+				}
+				return true
+			})
+			if found {
+				msgb.WriteString(value)
+			} else {
+				msgb.WriteByte('\'')
+				msgb.Write(key)
+				msgb.WriteByte('\'')
+			}
+			skip = false
+		}
+
+		entered = !entered
+	}
+
+	// add non-closed token
+	if entered {
+		msgb.Write(rmsg[start:])
+	}
+
+	if msgb != nil {
+		r.Message = msgb.String()
 	}
 }
