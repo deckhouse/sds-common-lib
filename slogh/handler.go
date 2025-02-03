@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -14,13 +15,17 @@ var _ slog.Handler = &Handler{}
 type Handler struct {
 	cfg Config
 	w   slog.Handler
+	// protects getting/setting of cfg or cfg+w;
+	// it's not protecting operations inside w, which are expected to be safe
+	// it's not protecting getting of w without cfg, which is safe
+	mu *sync.Mutex
 }
 
 // Initializes new handler with opts.
 // Use zero [Config] for default handler.
 func NewHandler(cfg Config) *Handler {
-	h := &Handler{cfg: cfg}
-	h.init()
+	h := &Handler{mu: &sync.Mutex{}}
+	h.init(cfg)
 	return h
 }
 
@@ -31,59 +36,83 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	if h.cfg.Render {
+	cfg, w := h.state()
+
+	if cfg.Render == RenderEnabled {
 		h.renderRecord(&r)
 	}
 
-	return h.w.Handle(ctx, r)
+	return w.Handle(ctx, r)
 }
 
 // WithAttrs implements slog.Handler.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	cfg, w := h.state()
 	return &Handler{
-		cfg: h.cfg,
-		w:   h.w.WithAttrs(attrs),
+		cfg: cfg,
+		mu:  &sync.Mutex{},
+		w:   w.WithAttrs(attrs),
 	}
 }
 
 // WithGroup implements slog.Handler.
 func (h *Handler) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+	cfg, w := h.state()
 	return &Handler{
-		cfg: h.cfg,
-		w:   h.w.WithGroup(name),
+		cfg: cfg,
+		mu:  &sync.Mutex{},
+		w:   w.WithGroup(name),
 	}
 }
 
+// Gets current config.
 func (h *Handler) Config() Config {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.cfg
 }
 
+// Sets current config.
 func (h *Handler) UpdateConfig(cfg Config) {
-	h.cfg = cfg
-	h.init()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.init(cfg)
 }
 
 func (h *Handler) UpdateConfigData(data map[string]string) error {
-	if err := h.cfg.UnmarshalData(data); err != nil {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	cfg := &Config{}
+	if err := cfg.UnmarshalData(data); err != nil {
 		return err
 	}
-	h.init()
+
+	h.init(*cfg)
 	return nil
 }
 
-func (h *Handler) init() {
-	if h.cfg.logDst == nil {
-		h.cfg.logDst = os.Stderr
+func (h *Handler) init(cfg Config) {
+	if cfg.logDst == nil {
+		if h.cfg.logDst == nil {
+			cfg.logDst = os.Stderr
+		} else {
+			cfg.logDst = h.cfg.logDst
+		}
 	}
 
-	cfg := h.cfg
+	h.cfg = cfg
 
 	opts := &slog.HandlerOptions{
 		Level:     slog.Level(cfg.Level),
-		AddSource: cfg.Callsite,
+		AddSource: cfg.Callsite == CallsiteEnabled,
 	}
 
-	if cfg.StringValues {
+	if cfg.StringValues == StringValuesEnabled {
 		opts.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
 			return slog.String(a.Key, a.Value.String())
 		}
@@ -94,6 +123,12 @@ func (h *Handler) init() {
 	} else {
 		h.w = slog.NewJSONHandler(cfg.logDst, opts)
 	}
+}
+
+func (h *Handler) state() (Config, slog.Handler) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.cfg, h.w
 }
 
 func (h *Handler) renderRecord(r *slog.Record) {

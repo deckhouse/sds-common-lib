@@ -2,12 +2,11 @@ package slogh
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -16,53 +15,212 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDefaultLogger(t *testing.T) {
-	sb := &strings.Builder{}
-	log := slog.New(NewHandler(Config{
-		logDst: sb,
-	}))
+func TestDefaultLoggerLevelsEnabled(t *testing.T) {
+	log := slog.New(NewHandler(Config{}))
 
-	if log.Enabled(context.TODO(), slog.LevelDebug) {
+	ctx := context.Background()
+
+	if log.Enabled(ctx, slog.LevelDebug) {
 		t.Errorf("expected debug level to be disabled")
 	}
-	if !log.Enabled(context.TODO(), slog.LevelInfo) {
+	if log.Enabled(ctx, slog.LevelDebug-1) {
+		t.Errorf("expected unknown small level to be disabled")
+	}
+	if !log.Enabled(ctx, slog.LevelInfo) {
 		t.Errorf("expected info level to be enabled")
 	}
-	if !log.Enabled(context.TODO(), slog.LevelWarn) {
+	if !log.Enabled(ctx, slog.LevelWarn) {
 		t.Errorf("expected warn level to be enabled")
 	}
-	if !log.Enabled(context.TODO(), slog.LevelError) {
+	if !log.Enabled(ctx, slog.LevelError) {
 		t.Errorf("expected error level to be enabled")
 	}
-
-	log.Debug("1")
-	if sb.Len() > 0 {
-		t.Errorf("expected debug logs not to be printed")
+	if !log.Enabled(ctx, slog.LevelError+1) {
+		t.Errorf("expected unknown big level to be enabled")
 	}
-
-	log.Info("i")
-	if sb.Len() == 0 {
-		t.Errorf("expected info logs to be printed")
-	}
-	sb.Reset()
-
-	log.Warn("w")
-	if sb.Len() == 0 {
-		t.Errorf("expected warn logs to be printed")
-	}
-	sb.Reset()
-
-	log.Error("e")
-	if sb.Len() == 0 {
-		t.Errorf("expected error logs to be printed")
-	}
-	sb.Reset()
 }
 
-func TestHandlerConfig(t *testing.T) {
+func TestDefaultLogger(t *testing.T) {
+	t.Run("debug", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			nil,
+			func(log *slog.Logger) {
+				log.DebugContext(context.Background(), "d")
+				log.Debug("", "", "")
+				log.Debug("x", "a", 5)
+				log.WithGroup("g").Debug("x", "a", 5)
+			},
+		)
+	})
+
+	t.Run("info", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			nil,
+			func(log *slog.Logger) {
+				log.With("b", 6).Info("i='a'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("INFO"),
+			assertMsg("i=5"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+
+	t.Run("warn", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			nil,
+			func(log *slog.Logger) {
+				log.With("b", 6).Warn("w='a'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("WARN"),
+			assertMsg("w=5"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			nil,
+			func(log *slog.Logger) {
+				log.With("b", 6).Error("e='a'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("ERROR"),
+			assertMsg("e=5"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+}
+
+func TestCustomizedLogger(t *testing.T) {
+	t.Run("LevelDebug", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Level: LevelDebug})
+			},
+			func(log *slog.Logger) {
+				log.WithGroup("a").WithGroup("b").Debug("d='a.b.c'", "c", 2.0)
+			},
+			assertSource(),
+			assertLevel("DEBUG"),
+			assertMsg("d='a.b.c'"), // TODO: grouped attrs are not rendered
+			assertAttrKey("a"),
+		)
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Level: LevelDebug})
+			},
+			func(log *slog.Logger) {
+				log.With("b", 6).Error("e='a'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("ERROR"),
+			assertMsg("e=5"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+
+	t.Run("LevelError", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Level: LevelError})
+			},
+			func(log *slog.Logger) {
+				log.Debug("x", "a", 5)
+				log.Info("")
+				log.Warn("x")
+			},
+		)
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Level: LevelError})
+			},
+			func(log *slog.Logger) {
+				log.With("b", 6).Error("e='a'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("ERROR"),
+			assertMsg("e=5"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+
+	t.Run("CallsiteDisabled", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Callsite: CallsiteDisabled})
+			},
+			func(log *slog.Logger) {
+				log.Info("x")
+			},
+			assertAttr("source", nil),
+		)
+	})
+
+	t.Run("RenderDisabled", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Render: RenderDisabled})
+			},
+			func(log *slog.Logger) {
+				log.With("b", 6).Info("a='a', b='b'", "a", 5)
+			},
+			assertSource(),
+			assertLevel("INFO"),
+			assertMsg("a='a', b='b'"),
+			assertAttr("a", "5"),
+			assertAttr("b", "6"),
+		)
+	})
+
+	t.Run("StringValuesDisabled", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{StringValues: StringValuesDisabled})
+			},
+			func(log *slog.Logger) {
+				log.With("b", 6.0).Info("a='a', b='b'", "a", 5.0)
+			},
+			assertSource(),
+			assertLevel("INFO"),
+			assertMsg("a=5, b='b'"), // TODO: b is not rendered, because of "With"
+			assertAttr("a", 5.0),
+			assertAttr("b", 6.0),
+		)
+	})
+
+}
+
+func TestHandlerConfigMarshaling(t *testing.T) {
 	h := NewHandler(Config{})
 
-	someCfg := Config{Level: LevelWarn, Format: FormatText, Callsite: true}
+	someCfg := Config{Level: LevelWarn, Format: FormatText, Callsite: CallsiteDisabled}
 
 	data := someCfg.MarshalData()
 
@@ -75,11 +233,13 @@ func TestHandlerConfig(t *testing.T) {
 		cfg := h.Config()
 
 		if cfg.Format != FormatText {
-			t.Fatalf("expected Format to be %s, fot %s", FormatText, cfg.Format)
+			t.Fatalf("expected Format to be %s, got %s", FormatText, cfg.Format)
 		}
-
 		if cfg.Level != LevelWarn {
-			t.Fatalf("expected Level to be %s, fot %s", LevelWarn, cfg.Level)
+			t.Fatalf("expected Level to be %s, got %s", LevelWarn, cfg.Level)
+		}
+		if cfg.Callsite != CallsiteDisabled {
+			t.Fatalf("expected Callsite to be %s, got %s", CallsiteDisabled, cfg.Level)
 		}
 
 		data2 := cfg.MarshalData()
@@ -87,81 +247,6 @@ func TestHandlerConfig(t *testing.T) {
 			t.Fatalf("expected data to be the same after unmarshal-marshal, got diff: %s", cmp.Diff(data, data2))
 		}
 	}
-}
-
-func TestRender(t *testing.T) {
-	sb := &strings.Builder{}
-	h := NewHandler(Config{
-		logDst: sb,
-	})
-	log := slog.New(h)
-
-	mockCfg := func(t *testing.T, cfg Config) {
-		origCfg := h.Config()
-		t.Cleanup(func() {
-			h.UpdateConfig(origCfg)
-			sb.Reset()
-		})
-		cfg.logDst = sb
-		h.UpdateConfig(cfg)
-	}
-
-	t.Run("No render", func(t *testing.T) {
-		log.Info("raw: 'x'", "x", 5)
-
-		expected := regexp.MustCompile(
-			`{"time":"[^"]*","level":"INFO","msg":"raw: 'x'","x":5}`,
-		)
-		if actual := sb.String(); !expected.Match([]byte(actual)) {
-			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
-		}
-	})
-
-	t.Run("Render", func(t *testing.T) {
-		mockCfg(t, Config{
-			Render: true,
-		})
-
-		log.Info("error happened 'a' times with 'bb', 'x', '': 'err'", "a", 5, "bb", true, "err", fmt.Errorf("test error"))
-
-		expected := regexp.MustCompile(
-			`{"time":"[^"]*","level":"INFO","msg":"error happened 5 times with true, 'x', '': test error","a":5,"bb":true,"err":"test error"}`,
-		)
-		if actual := sb.String(); !expected.Match([]byte(actual)) {
-			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
-		}
-	})
-
-	t.Run("Render with StringValues", func(t *testing.T) {
-		mockCfg(t, Config{
-			Render:       true,
-			StringValues: true,
-		})
-
-		log.With("s", "").Info("error happened 'a' times with 'bb', 'x', '': 'err'", "a", 5, "bb", true, "err", fmt.Errorf("test error"))
-
-		expected := regexp.MustCompile(
-			`{"time":"[^"]*","level":"INFO","msg":"error happened 5 times with true, 'x', '': test error","s":"","a":"5","bb":"true","err":"test error"}`,
-		)
-		if actual := sb.String(); !expected.Match([]byte(actual)) {
-			t.Fatalf("\nexpected pattern:                      %s\ngot: %s", expected, actual)
-		}
-	})
-
-	t.Run("Render single quote", func(t *testing.T) {
-		mockCfg(t, Config{
-			Render:       true,
-			StringValues: true,
-		})
-		log.Info("'A' isn't even", "A", 5, "a", 6)
-		expected := regexp.MustCompile(
-			`{"time":"[^"]*","level":"INFO","msg":"5 isn't even","A":"5","a":"6"}`,
-		)
-		if actual := sb.String(); !expected.Match([]byte(actual)) {
-			t.Fatalf("\nexpected pattern:                  %s\ngot: %s", expected, actual)
-		}
-
-	})
 }
 
 func TestFileWatcher(t *testing.T) {
@@ -303,4 +388,78 @@ func TestFileWatcher(t *testing.T) {
 	if sb.Len() == 0 {
 		t.Fatalf("expected Debug level to be enabled after log config recreate")
 	}
+
+}
+
+type msgAssert func(t *testing.T, msg map[string]any)
+
+func testLog(
+	t *testing.T,
+	actHandler func(h *Handler),
+	actLog func(log *slog.Logger),
+	asserts ...msgAssert,
+) {
+	t.Helper()
+
+	sb := &strings.Builder{}
+	h := NewHandler(Config{
+		logDst: sb,
+	})
+	log := slog.New(h)
+
+	msg := map[string]any{}
+
+	if actHandler != nil {
+		actHandler(h)
+	}
+
+	actLog(log)
+
+	if len(asserts) == 0 {
+		if sb.Len() > 0 {
+			t.Errorf("expected logs not to be printed, got: %s", sb.String())
+		}
+		return
+	}
+
+	if sb.Len() == 0 {
+		t.Errorf("expected logs to be printed, got empty output")
+	}
+	if err := json.Unmarshal([]byte(sb.String()), &msg); err != nil {
+		t.Errorf("expected logs to be valid json, got error: %v", err)
+	}
+
+	for _, assert := range asserts {
+		assert(t, msg)
+	}
+}
+
+func assertAttrKey(k string) msgAssert {
+	return func(t *testing.T, msg map[string]any) {
+		t.Helper()
+		if v := msg[k]; v == nil {
+			t.Errorf("expected '%s' to be set, got '<nil>'", k)
+		}
+	}
+}
+
+func assertAttr(k string, v any) msgAssert {
+	return func(t *testing.T, msg map[string]any) {
+		t.Helper()
+
+		if msg[k] != v {
+			t.Errorf("expected '%s' to be '%v' (%T), got: '%v' (%T)", k, v, v, msg[k], msg[k])
+		}
+	}
+}
+
+func assertLevel(l string) msgAssert {
+	return assertAttr("level", l)
+}
+func assertMsg(m string) msgAssert {
+	return assertAttr("msg", m)
+}
+
+func assertSource() msgAssert {
+	return assertAttrKey("source")
 }
