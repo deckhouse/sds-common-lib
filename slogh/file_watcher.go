@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -24,24 +25,9 @@ var errConfigRead = errors.New("unable to read config")
 
 var errConfigProcess = errors.New("unable to process config file")
 
-type Ticker interface {
-	C() <-chan time.Time
-	Stop()
-	Reset(d time.Duration)
-}
-
-var _ Ticker = &ticker{}
-
-type ticker struct {
-	*time.Ticker
-}
-
-// C implements Ticker.
-func (t *ticker) C() <-chan time.Time {
-	return t.Ticker.C
-}
-
 type ConfigFileWatcherOptions struct {
+	// Default is "./slogh.cfg"
+	FilePath string
 	// Where watcher's own logs should go. If nil, [slog.Default] will be used
 	OwnLogger *slog.Logger
 	// How much to wait before retrying critical errors like missing file.
@@ -50,8 +36,6 @@ type ConfigFileWatcherOptions struct {
 	// Maximum rate at which updates will be sent to [UpdateConfigDataFunc].
 	// Duplicates will be "merged" and sent later. Default is 1s.
 	DedupInterval *time.Duration
-	// For testing purposes.
-	NewTicker func(d time.Duration) Ticker
 }
 
 type UpdateConfigDataFunc func(data map[string]string) error
@@ -59,31 +43,21 @@ type UpdateConfigDataFunc func(data map[string]string) error
 // TODO default filePath="./slogh.cfg"
 // TODO also support overriding with SLOGH_CONFIG_PATH
 // TODO(optional) sac reload latency to avoid duplicate reload (after test in k8s)
-// TODO: block on the initial recload, continue in case of errors
+
+// Starts a goroutine, which will monitor and periodically reload the config.
+// Call blocks until first attempt to reload will get the result.
+// It's panic-free and error-free, all errors will be reported to [ConfigFileWatcherOptions.OwnLogger]
+// Cancelation of the context will lead to graceful shutdown of the goroutine.
 func RunConfigFileWatcher(
 	ctx context.Context,
-	filePath string,
 	update UpdateConfigDataFunc,
 	opts *ConfigFileWatcherOptions,
 ) {
 	var log *slog.Logger
 
-	// don't crash the app
-	defer func() {
-		if r := recover(); r != nil {
-			if log != nil {
-				log.Error("panic recovered", "err", r, "stack", debug.Stack())
-			} else {
-				fmt.Printf("panic recovered: %v\n", r)
-				fmt.Println(string(debug.Stack()))
-			}
-		}
-	}()
-
 	// own logger
 	if opts != nil {
 		if log = opts.OwnLogger; log == nil {
-			// TODO write to same log?
 			log = slog.Default()
 		}
 	}
@@ -100,45 +74,65 @@ func RunConfigFileWatcher(
 		dedupInterval = *opts.DedupInterval
 	}
 
-	// ticker
-	newTicker := func(d time.Duration) Ticker {
-		return &ticker{time.NewTicker(d)}
-	}
-	if opts != nil && opts.NewTicker != nil {
-		newTicker = opts.NewTicker
+	filePath := "./slogh.cfg"
+	if opts != nil && opts.FilePath != "" {
+		filePath = opts.FilePath
 	}
 
-	log.Info("config file watcher started", "file", filePath)
-	defer func() {
-		log.Info("config file watcher stopped", "file", filePath)
+	// wait for initial reload attempt
+	var initialReloadDone bool
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		// don't crash the app
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("panic recovered", "err", r, "stack", debug.Stack())
+			}
+		}()
+
+		log.Info("config file watcher started", "file", filePath)
+		defer func() {
+			log.Info("config file watcher stopped", "file", filePath)
+		}()
+
+		for {
+			if ctx.Err() != nil {
+				log.Debug("finished reloading config")
+				return
+			}
+
+			err := reloadConfig(filePath, update, log)
+
+			if !initialReloadDone {
+				initialReloadDone = true
+				log.Debug("initial reload done", "err", err)
+				wg.Done()
+			}
+
+			if err != nil {
+				log.Error("periodic config reload failed", "err", err)
+			} else if err := watchConfig(
+				ctx,
+				filePath,
+				update,
+				log,
+				dedupInterval,
+			); err != nil {
+				if errors.Is(err, errWatcherSubscriptionLost) {
+					log.Debug("subscription lost: reloading watcher immediately")
+				} else {
+					log.Error("watching config file failed", "err", err)
+				}
+			}
+
+			// error branch: want to wait before repeat
+			time.Sleep(retryInterval)
+		}
 	}()
 
-	for {
-		if ctx.Err() != nil {
-			log.Debug("finished reloading config")
-			return
-		}
-
-		if err := reloadConfig(filePath, update, log); err != nil {
-			log.Error("periodic config reload failed", "err", err)
-		} else if err := watchConfig(
-			ctx,
-			filePath,
-			update,
-			log,
-			newTicker,
-			dedupInterval,
-		); err != nil {
-			if errors.Is(err, errWatcherSubscriptionLost) {
-				log.Debug("subscription lost: reloading watcher immediately")
-			} else {
-				log.Error("watching config file failed", "err", err)
-			}
-		}
-
-		// error branch: want to wait before repeat
-		time.Sleep(retryInterval)
-	}
+	wg.Wait()
 }
 
 func watchConfig(
@@ -146,7 +140,6 @@ func watchConfig(
 	filePath string,
 	update UpdateConfigDataFunc,
 	log *slog.Logger,
-	newTicker func(d time.Duration) Ticker,
 	dedupInterval time.Duration,
 ) error {
 	fw, err := fsnotify.NewWatcher()
@@ -169,7 +162,7 @@ func watchConfig(
 
 	// to flush [missedEvents], and
 	// to monitor lost subsriptions, due to file removal
-	statusTicker := newTicker(dedupInterval)
+	statusTicker := time.NewTicker(dedupInterval)
 	defer statusTicker.Stop()
 
 	for {
@@ -177,7 +170,7 @@ func watchConfig(
 		case <-ctx.Done():
 			log.Debug("finished watching 'file'", "file", filePath)
 			return nil
-		case <-statusTicker.C():
+		case <-statusTicker.C:
 			if len(fw.WatchList()) == 0 {
 				// path was removed (e.g. due to file move) -> want watcher reload
 				return errWatcherSubscriptionLost

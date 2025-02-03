@@ -166,7 +166,7 @@ func TestRender(t *testing.T) {
 
 func TestFileWatcher(t *testing.T) {
 	// should be small (<=1s), but increase this to prevent timeouts when debugging
-	timeoutMultiplier := 200000 * time.Second
+	timeoutMultiplier := 2 * time.Second
 
 	configPath := filepath.Join(t.TempDir(), "log.cfg")
 
@@ -184,7 +184,7 @@ func TestFileWatcher(t *testing.T) {
 	log := slog.New(h)
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	watcherDone := make(chan struct{})
+	watcherDone := make(chan struct{}, 1)
 	ownLog := &strings.Builder{}
 	t.Cleanup(func() {
 		ctxCancel()
@@ -210,9 +210,9 @@ func TestFileWatcher(t *testing.T) {
 	go func() {
 		RunConfigFileWatcher(
 			ctx,
-			configPath,
 			h.UpdateConfigData,
 			&ConfigFileWatcherOptions{
+				FilePath: configPath,
 				OwnLogger: slog.New(
 					NewHandler(Config{Level: LevelDebug, logDst: ownLogMock}),
 				).With("logger", "FileWatcher"),
@@ -222,9 +222,17 @@ func TestFileWatcher(t *testing.T) {
 		watcherDone <- struct{}{}
 	}()
 
+	// wait for initial reload
+	initialReloadTimeout := timeoutMultiplier
+	tctx, tctxCancel := context.WithTimeout(ctx, initialReloadTimeout)
+	t.Cleanup(tctxCancel)
+	if found := ownLogMock.WaitForString(tctx, "initial reload done"); !found {
+		t.Fatalf("expected watcher to do initial reload in %s, but it didn't", initialReloadTimeout.String())
+	}
+
 	// wait for watcher to start
 	startWatchTimeout := timeoutMultiplier
-	tctx, tctxCancel := context.WithTimeout(ctx, startWatchTimeout)
+	tctx, tctxCancel = context.WithTimeout(ctx, startWatchTimeout)
 	t.Cleanup(tctxCancel)
 	if found := ownLogMock.WaitForString(tctx, "started watching"); !found {
 		t.Fatalf("expected watcher to start watching in %s, but it didn't", startWatchTimeout.String())
