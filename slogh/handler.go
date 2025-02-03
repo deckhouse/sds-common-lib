@@ -112,10 +112,18 @@ func (h *Handler) init(cfg Config) {
 		AddSource: cfg.Callsite == CallsiteEnabled,
 	}
 
-	if cfg.StringValues == StringValuesEnabled {
-		opts.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
+	opts.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
+
+		if len(groups) == 0 && a.Key == slog.LevelKey {
+
+			return slog.String(a.Key, Level(a.Value.Any().(slog.Level)).String())
+			// print(a.Value.String())
+		}
+
+		if cfg.StringValues == StringValuesEnabled {
 			return slog.String(a.Key, a.Value.String())
 		}
+		return a
 	}
 
 	if cfg.Format == FormatText {

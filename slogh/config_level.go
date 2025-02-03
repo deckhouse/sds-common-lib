@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// TODO: avoid "DEBUG-XXX" concatenation and write just "XXX"
 const (
 	LevelDebug Level = -4
 	LevelInfo  Level = 0
@@ -19,17 +18,19 @@ const (
 type Level int
 
 func (l Level) String() string {
-	switch {
-	case l < LevelInfo:
+	switch l {
+	case LevelDebug:
 		return "DEBUG"
-	case l < LevelWarn:
+	case LevelInfo:
 		return "INFO"
-	case l < LevelError:
+	case LevelWarn:
 		return "WARN"
-	case l < LevelOff:
+	case LevelError:
 		return "ERROR"
-	default:
+	case LevelOff:
 		return "OFF"
+	default:
+		return strconv.Itoa(int(l))
 	}
 }
 

@@ -165,6 +165,22 @@ func TestCustomizedLogger(t *testing.T) {
 		)
 	})
 
+	t.Run("level info-100", func(t *testing.T) {
+		t.Parallel()
+		testLog(
+			t,
+			func(h *Handler) {
+				h.UpdateConfig(Config{Level: LevelInfo - 100})
+			},
+			func(log *slog.Logger) {
+				log.Log(context.Background(), slog.LevelInfo-100, "x")
+			},
+			assertSource(),
+			assertLevel("-100"),
+			assertMsg("x"),
+		)
+	})
+
 	t.Run("CallsiteDisabled", func(t *testing.T) {
 		t.Parallel()
 		testLog(
@@ -214,7 +230,6 @@ func TestCustomizedLogger(t *testing.T) {
 			assertAttr("b", 6.0),
 		)
 	})
-
 }
 
 func TestHandlerConfigMarshaling(t *testing.T) {
@@ -424,9 +439,11 @@ func testLog(
 
 	if sb.Len() == 0 {
 		t.Errorf("expected logs to be printed, got empty output")
+		return
 	}
 	if err := json.Unmarshal([]byte(sb.String()), &msg); err != nil {
 		t.Errorf("expected logs to be valid json, got error: %v", err)
+		return
 	}
 
 	for _, assert := range asserts {

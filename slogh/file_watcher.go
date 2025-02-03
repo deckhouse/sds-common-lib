@@ -40,9 +40,7 @@ type ConfigFileWatcherOptions struct {
 
 type UpdateConfigDataFunc func(data map[string]string) error
 
-// TODO default filePath="./slogh.cfg"
-// TODO also support overriding with SLOGH_CONFIG_PATH
-// TODO(optional) sac reload latency to avoid duplicate reload (after test in k8s)
+// TODO sac reload latency to avoid duplicate reload (after test in k8s)
 
 // Starts a goroutine, which will monitor and periodically reload the config.
 // Call blocks until first attempt to reload will get the result.
@@ -77,6 +75,8 @@ func RunConfigFileWatcher(
 	filePath := "./slogh.cfg"
 	if opts != nil && opts.FilePath != "" {
 		filePath = opts.FilePath
+	} else if filePathFromEnv := os.Getenv("SLOGH_CONFIG_PATH"); filePathFromEnv != "" {
+		filePath = filePathFromEnv
 	}
 
 	// wait for initial reload attempt
@@ -244,7 +244,6 @@ func reloadConfig(filePath string, update UpdateConfigDataFunc, log *slog.Logger
 			continue
 		}
 
-		// TODO bug - trim before quoting?
 		key = bytes.TrimSpace(key)
 		value = bytes.TrimSpace(value)
 
