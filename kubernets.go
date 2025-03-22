@@ -1,4 +1,4 @@
-package handlers
+package client
 
 import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
