@@ -1,4 +1,4 @@
-package client
+package kubeclient
 
 import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
