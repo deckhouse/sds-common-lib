@@ -2,16 +2,12 @@ package kubeclient
 
 import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func NewKubeClient(kubeconfigPath string, schemeFuncs ...func(*apiruntime.Scheme) error) (client.Client, error) {
-	var config *rest.Config
-	var err error
-
-	config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+func New(kubeconfigPath string, schemeFuncs ...func(*apiruntime.Scheme) error) (client.Client, error) {
+	kubeConfig, err := config.GetConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -28,5 +24,5 @@ func NewKubeClient(kubeconfigPath string, schemeFuncs ...func(*apiruntime.Scheme
 		Scheme: scheme,
 	}
 
-	return client.New(config, clientOpts)
+	return client.New(kubeConfig, clientOpts)
 }
