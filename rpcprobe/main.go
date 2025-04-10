@@ -42,15 +42,19 @@ func main() {
 		fmt.Printf("Failed to establish connection to CSI driver: %v", err)
 		os.Exit(1)
 	}
+	defer csiConn.Close()
 
-	fmt.Printf("Calling CSI driver to discover driver name")
-	csiDriverName, err := rpc.GetDriverName(context.Background(), csiConn)
-	csiConn.Close()
+	fmt.Printf("Calling CSI driver to discover driver name\n")
+
+   	methodCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	csiDriverName, err := rpc.GetDriverName(methodCtx, csiConn)
 	if err != nil {
 		fmt.Printf("Failed to get CSI driver name: %v", err)
 		os.Exit(1)
 	}
 	fmt.Printf("CSI driver name %s", csiDriverName)
-
+	fmt.Printf("CSI driver name %s\n", csiDriverName)
 	os.Exit(0)
 }
