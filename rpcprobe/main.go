@@ -29,8 +29,8 @@ type Probe struct{}
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Usage: program <unix_socket_path>")
-		fmt.Println("Example: program /tmp/rpc.sock")
+		fmt.Println("Usage: rpcprobe <unix_socket_path>")
+		fmt.Println("Example: rpcprobe /tmp/rpc.sock")
 		os.Exit(1)
 	}
 
