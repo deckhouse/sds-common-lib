@@ -13,8 +13,8 @@ type ExponentialCooldown struct {
 
 	// mutable:
 
-	lastHit      time.Time
-	currentDelay time.Duration
+	lastHit           time.Time
+	nextCooldownDelay time.Duration
 }
 
 func NewExponentialCooldown(
@@ -29,11 +29,10 @@ func NewExponentialCooldown(
 	}
 
 	return &ExponentialCooldown{
-		initialDelay: initialDelay,
-		maxDelay:     maxDelay,
-		mu:           &sync.Mutex{},
-
-		currentDelay: initialDelay,
+		initialDelay:      initialDelay,
+		maxDelay:          maxDelay,
+		mu:                &sync.Mutex{},
+		nextCooldownDelay: initialDelay,
 	}
 }
 
@@ -55,10 +54,10 @@ func (cd *ExponentialCooldown) Hit(ctx context.Context) error {
 
 	sinceLastHit := time.Since(cd.lastHit)
 
-	if sinceLastHit >= cd.currentDelay {
+	if sinceLastHit >= cd.nextCooldownDelay {
 		// cooldown has passed by itself - resetting the delay
 		cd.lastHit = time.Now()
-		cd.currentDelay = cd.initialDelay
+		cd.nextCooldownDelay = cd.initialDelay
 		return nil
 	}
 
@@ -66,10 +65,10 @@ func (cd *ExponentialCooldown) Hit(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(cd.currentDelay - sinceLastHit):
+	case <-time.After(cd.nextCooldownDelay - sinceLastHit):
 		// cooldown has passed just now - doubling the delay
 		cd.lastHit = time.Now()
-		cd.currentDelay = min(cd.currentDelay*2, cd.maxDelay)
+		cd.nextCooldownDelay = min(cd.nextCooldownDelay*2, cd.maxDelay)
 		return nil
 	}
 }
