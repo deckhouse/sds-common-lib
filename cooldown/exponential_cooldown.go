@@ -36,9 +36,7 @@ func NewExponentialCooldown(
 	}
 }
 
-// If not in cooldown, returns immediately, and starts the cooldown.
-// If in cooldown, waits until cooled and returns nil. Next delay will be
-// doubled, but always shorter then maxDelay and longer then initialDelay.
+// Implements [Cooldown]
 func (cd *ExponentialCooldown) Hit(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
