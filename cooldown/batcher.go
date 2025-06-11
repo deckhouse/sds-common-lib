@@ -8,6 +8,9 @@ import (
 
 type BatchAppend func(batch []any, newItem any) []any
 
+// Buffer, which is populated via [Batcher.Add] and consumed with
+// [Batcher.ConsumeWithCooldown]. Allows batching items (see batchAppend in
+// [NewBatcher]) and consuming them in time-controlled way - with cooldown.
 type Batcher struct {
 	mu          *sync.Mutex
 	cond        *sync.Cond
@@ -15,6 +18,8 @@ type Batcher struct {
 	items       []any
 }
 
+// Creates new [*Batcher] with batchAppend, which allows modifying current batch
+// buffer before consumer takes it.
 func NewBatcher(batchAppend BatchAppend) *Batcher {
 	if batchAppend == nil {
 		batchAppend = func(batch []any, newItem any) []any {
