@@ -49,6 +49,7 @@ func (b *Batcher) Add(newItem any) error {
 	return nil
 }
 
+// See [Batcher]
 func (b *Batcher) ConsumeWithCooldown(
 	ctx context.Context,
 	cooldown Cooldown,
