@@ -18,17 +18,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	deckhouse_io "github.com/deckhouse/deckhouse/deckhouse-controller/pkg/apis/deckhouse.io"
 )
 
 const (
 	Version              = "v1alpha1"
 	DeckhouseReleaseKind = "DeckhouseRelease"
+	GroupName 		     = "deckhouse.io"
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: deckhouse_io.GroupName, Version: Version}
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {
@@ -54,22 +53,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&ModuleConfig{},
 		&ModuleConfigList{},
-		&Module{},
-		&ModuleList{},
-		&ModuleSource{},
-		&ModuleSourceList{},
-		&ModuleRelease{},
-		&ModuleReleaseList{},
-		&ModuleUpdatePolicy{},
-		&ModuleUpdatePolicyList{},
-		&ModulePullOverride{},
-		&ModulePullOverrideList{},
-		&ModuleDocumentation{},
-		&ModuleDocumentationList{},
-		&ModuleSettingsDefinition{},
-		&ModuleSettingsDefinitionList{},
-		&DeckhouseRelease{},
-		&DeckhouseReleaseList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
