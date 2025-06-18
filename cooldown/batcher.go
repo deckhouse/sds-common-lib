@@ -35,6 +35,9 @@ func NewBatcher(batchAppend BatchAppend) *Batcher {
 	}
 }
 
+// Passes new item to [BatchAppend] and then awakes the consumer, if any.
+// [Batcher.Add] never returns non-nil error. It's only for backward
+// compatibility purposes.
 func (b *Batcher) Add(newItem any) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
