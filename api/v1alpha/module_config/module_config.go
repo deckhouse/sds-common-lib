@@ -1,5 +1,5 @@
 /*
-Copyright 2023 Flant JSC
+Copyright 2025 Flant JSC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,43 +22,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const (
-	ModuleConfigResource = "moduleconfigs"
-	ModuleConfigKind     = "ModuleConfig"
-
-	ModuleConfigAnnotationAllowDisable = "modules.deckhouse.io/allow-disabling"
-
-	ModuleConfigFinalizer = "modules.deckhouse.io/module-config"
-
-	ModuleConfigMessageUnknownModule = "Ignored: unknown module name"
-)
-
 var (
 	// ModuleConfigGVR GroupVersionResource
 	ModuleConfigGVR = schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ModuleConfigResource,
+		Resource: "moduleconfigs",
 	}
 	ModuleConfigGVK = schema.GroupVersionKind{
 		Group:   SchemeGroupVersion.Group,
 		Version: SchemeGroupVersion.Version,
-		Kind:    ModuleConfigKind,
+		Kind:    "ModuleConfig",
 	}
 )
 
 var _ runtime.Object = (*ModuleConfig)(nil)
-
-// +k8s:deepcopy-gen=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// ModuleConfigList is a list of ModuleConfig resources
-type ModuleConfigList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-
-	Items []ModuleConfig `json:"items"`
-}
 
 // +genclient
 // +genclient:nonNamespaced
@@ -73,12 +51,11 @@ type ModuleConfig struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ModuleConfigSpec `json:"spec"`
-
+	Spec   ModuleConfigSpec   `json:"spec"`
 	Status ModuleConfigStatus `json:"status,omitempty"`
 }
 
-// SettingsValues empty interface in needed to handle DeepCopy generation. DeepCopy does not work with unnamed empty interfaces
+// SettingsValues empty interface is needed to handle DeepCopy generation. DeepCopy does not work with unnamed empty interfaces
 type SettingsValues map[string]interface{}
 
 func (v *SettingsValues) DeepCopy() *SettingsValues {
@@ -103,12 +80,9 @@ func (v SettingsValues) DeepCopyInto(out *SettingsValues) {
 }
 
 type ModuleConfigSpec struct {
-	Version      int            `json:"version,omitempty"`
-	Settings     SettingsValues `json:"settings,omitempty"`
-	Enabled      *bool          `json:"enabled,omitempty"`
-	UpdatePolicy string         `json:"updatePolicy,omitempty"`
-	Source       string         `json:"source,omitempty"`
-	Maintenance  string         `json:"maintenance,omitempty"`
+	Version  int            `json:"version,omitempty"`
+	Settings SettingsValues `json:"settings,omitempty"`
+	Enabled  *bool          `json:"enabled,omitempty"`
 }
 
 type ModuleConfigStatus struct {
@@ -116,9 +90,24 @@ type ModuleConfigStatus struct {
 	Message string `json:"message"`
 }
 
-func (m *ModuleConfig) IsEnabled() bool {
-	if m.Spec.Enabled != nil {
-		return *m.Spec.Enabled
-	}
-	return false
+// +k8s:deepcopy-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ModuleConfigList is a list of ModuleConfig resources
+type ModuleConfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []ModuleConfig `json:"items"`
+}
+
+type moduleConfigKind struct{}
+
+func (in *ModuleConfigStatus) GetObjectKind() schema.ObjectKind {
+	return &moduleConfigKind{}
+}
+
+func (f *moduleConfigKind) SetGroupVersionKind(_ schema.GroupVersionKind) {}
+func (f *moduleConfigKind) GroupVersionKind() schema.GroupVersionKind {
+	return ModuleConfigGVK
 }
