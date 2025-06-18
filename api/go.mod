@@ -1,8 +1,6 @@
 module github.com/deckhouse/sds-common-lib/api
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.24.3
 
 require k8s.io/apimachinery v0.33.1
 
