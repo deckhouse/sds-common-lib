@@ -71,9 +71,10 @@ func RunConfigFileWatcher(
 
 	// own logger
 	if opts != nil {
-		if log = opts.OwnLogger; log == nil {
-			log = slog.Default()
-		}
+		log = opts.OwnLogger
+	}
+	if log == nil {
+		log = slog.Default()
 	}
 
 	// polling loop, which should normally be replaced with loop in [watchConfig]

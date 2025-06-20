@@ -72,6 +72,8 @@ stringValues=true
 
 Alternative configuration file location can be provided directly with `slogh.ConfigFileWatcherOptions` (higher priority), or with env var `SLOGH_CONFIG_PATH` (lower priority).
 
+In Kubernetes, you can map `ConfigMap` into a config file in your container, and it will be reloaded automatically without container restart. See [instruction](https://kubernetes.io/docs/concepts/storage/volumes/#configmap).
+
 ## Token rendering in messages
 
 Option `render=true` or `slogh.Config{Render: slogh.RenderEnabled}` allows to render attribute values directly to your messages, using single-quoted attribute names as tokens.
