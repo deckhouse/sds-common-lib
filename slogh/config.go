@@ -33,9 +33,26 @@ type Config struct {
 	// Whether to string attribute values before outputting.
 	// e.g. `5` will become `"5"`
 	StringValues StringValues
-
+	// Incremented on each reload
+	version uint
 	// for testing purposes
 	logDst io.Writer
+}
+
+func (cfg *Config) UpdateConfigData(data map[string]string) error {
+	newCfg := Config{}
+	if err := newCfg.UnmarshalData(data); err != nil {
+		return err
+	}
+	newCfg.version = cfg.version + 1
+	*cfg = newCfg
+	return nil
+}
+
+func (cfg *Config) NoReload() *Config {
+	res := *cfg
+	res.version = ^uint(0)
+	return &res
 }
 
 func (cfg *Config) MarshalData() map[string]string {

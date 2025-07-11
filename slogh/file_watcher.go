@@ -56,6 +56,11 @@ type ConfigFileWatcherOptions struct {
 
 type UpdateConfigDataFunc func(data map[string]string) error
 
+// Calls [RunConfigFileWatcher] in order to reload global [DefaultConfig]
+func EnableConfigReload(ctx context.Context, opts *ConfigFileWatcherOptions) {
+	RunConfigFileWatcher(ctx, DefaultConfig.UpdateConfigData, opts)
+}
+
 // TODO sac reload latency to avoid duplicate reload (after test in k8s)
 
 // Starts a goroutine, which will monitor and periodically reload the config.
@@ -188,10 +193,12 @@ func watchConfig(
 			log.Debug("finished watching 'file'", "file", filePath)
 			return nil
 		case <-statusTicker.C:
-			if len(fw.WatchList()) == 0 {
+			watchList := fw.WatchList()
+			if len(watchList) == 0 {
 				// path was removed (e.g. due to file move) -> want watcher reload
 				return errWatcherSubscriptionLost
 			}
+
 			if !missedEvents {
 				continue
 			}

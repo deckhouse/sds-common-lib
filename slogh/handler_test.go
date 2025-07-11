@@ -327,6 +327,7 @@ func TestFileWatcher(t *testing.T) {
 	})
 
 	retryInterval := time.Millisecond * 200
+
 	go func() {
 		RunConfigFileWatcher(
 			ctx,
@@ -364,6 +365,10 @@ func TestFileWatcher(t *testing.T) {
 		t.Fatalf("expected Debug level to be enabled")
 	}
 	sb.Reset()
+
+	// before updating the config, let's clone the logger to check that the new
+	// one will receive updates
+	log = log.With("v", 2)
 
 	// append to file
 	if err := os.WriteFile(

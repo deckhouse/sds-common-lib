@@ -27,60 +27,89 @@ import (
 
 var _ slog.Handler = &Handler{}
 
+// This is reloadable config, shared across all [Handler] structs.
+// Reloading can be started with [EnableConfigReload].
+var DefaultConfig = &Config{}
+
 // Opinionated Deckhouse-specific [slog.Handler].
 type Handler struct {
 	cfg Config
 	w   slog.Handler
-	// protects getting/setting of cfg or cfg+w;
-	// it's not protecting operations inside w, which are expected to be safe
-	// it's not protecting getting of w without cfg, which is safe
+	// protects the entire state of [Handler], should be taken on each call
 	mu *sync.Mutex
+	// functions, which should be applied on a next w (reloaded), in order to
+	// mimic the behaviour of an old, wrapped w.
+	wrappers []func(slog.Handler) slog.Handler
 }
 
 // Initializes new handler with opts.
 // Use zero [Config] for default handler.
-func NewHandler(cfg Config) *Handler {
+// Note: config will change if reload is enabled (see [EnableConfigReload])
+// Use [Config.NoReload] to forcibly prevent any reload.
+func NewHandler(initialCfg Config) *Handler {
 	h := &Handler{mu: &sync.Mutex{}}
-	h.init(cfg)
+	h.init(initialCfg)
 	return h
 }
 
 // Enabled implements slog.Handler.
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ensureReloaded()
 	return h.w.Enabled(ctx, level)
 }
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	cfg, w := h.state()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ensureReloaded()
 
-	if cfg.Render == RenderEnabled {
+	if h.cfg.Render == RenderEnabled {
 		h.renderRecord(&r)
 	}
 
-	return w.Handle(ctx, r)
+	return h.w.Handle(ctx, r)
 }
 
 // WithAttrs implements slog.Handler.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	cfg, w := h.state()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ensureReloaded()
+
+	wrapper := func(w slog.Handler) slog.Handler {
+		return w.WithAttrs(attrs)
+	}
+
 	return &Handler{
-		cfg: cfg,
-		mu:  &sync.Mutex{},
-		w:   w.WithAttrs(attrs),
+		cfg:      h.cfg,
+		mu:       &sync.Mutex{},
+		w:        wrapper(h.w),
+		wrappers: append(h.wrappers, wrapper),
 	}
 }
 
 // WithGroup implements slog.Handler.
 func (h *Handler) WithGroup(name string) slog.Handler {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ensureReloaded()
+
 	if name == "" {
 		return h
 	}
-	cfg, w := h.state()
+
+	wrapper := func(w slog.Handler) slog.Handler {
+		return w.WithGroup(name)
+	}
+
 	return &Handler{
-		cfg: cfg,
-		mu:  &sync.Mutex{},
-		w:   w.WithGroup(name),
+		cfg:      h.cfg,
+		mu:       &sync.Mutex{},
+		w:        wrapper(h.w),
+		wrappers: append(h.wrappers, wrapper),
 	}
 }
 
@@ -91,7 +120,7 @@ func (h *Handler) Config() Config {
 	return h.cfg
 }
 
-// Sets current config.
+// Sets current config. Useful to stop reloading by passing [Config.NoReload].
 func (h *Handler) UpdateConfig(cfg Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -99,17 +128,12 @@ func (h *Handler) UpdateConfig(cfg Config) {
 	h.init(cfg)
 }
 
+// Deprecated: there's no good reason to use this method.
+// It will update [DefaultConfig], but the more direct way to do this
+// is to use [EnableConfigReload] or just call [Config.UpdateConfigData] on
+// [DefaultConfig].
 func (h *Handler) UpdateConfigData(data map[string]string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	cfg := &Config{}
-	if err := cfg.UnmarshalData(data); err != nil {
-		return err
-	}
-
-	h.init(*cfg)
-	return nil
+	return DefaultConfig.UpdateConfigData(data)
 }
 
 func (h *Handler) init(cfg Config) {
@@ -117,6 +141,7 @@ func (h *Handler) init(cfg Config) {
 		if h.cfg.logDst == nil {
 			cfg.logDst = os.Stderr
 		} else {
+			// keep old logDst, if set
 			cfg.logDst = h.cfg.logDst
 		}
 	}
@@ -155,12 +180,17 @@ func (h *Handler) init(cfg Config) {
 	} else {
 		h.w = slog.NewJSONHandler(cfg.logDst, opts)
 	}
+
+	// see h.wrappers
+	for _, wrapper := range h.wrappers {
+		h.w = wrapper(h.w)
+	}
 }
 
-func (h *Handler) state() (Config, slog.Handler) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.cfg, h.w
+func (h *Handler) ensureReloaded() {
+	if h.cfg.version < DefaultConfig.version {
+		h.init(*DefaultConfig)
+	}
 }
 
 func (h *Handler) renderRecord(r *slog.Record) {
@@ -170,7 +200,7 @@ func (h *Handler) renderRecord(r *slog.Record) {
 	var skip bool
 	rmsg := unsafe.Slice(unsafe.StringData(r.Message), len(r.Message))
 
-	for i := 0; i < len(rmsg); i++ {
+	for i := range rmsg {
 		c := rmsg[i]
 
 		if c != '\'' {
