@@ -17,6 +17,7 @@ limitations under the License.
 package mockfs
 
 import (
+	"io/fs"
 	"os"
 	"time"
 )
@@ -31,4 +32,47 @@ type File struct {
 	LinkSource string           // symlink source (path to the file)
 	Parent     *File            // parent directory
 	Children   map[string]*File // children of the file (if the file is a directory)
+}
+
+// File descriptor ("opened file")
+type Fd struct{}
+
+// =====================
+// `fsext.File` interface implementation for `Fd`
+// =====================
+
+func (f *Fd) Stat() (fs.FileInfo, error) {
+	panic("not implemented")
+}
+
+func (f *Fd) Read(p []byte) (n int, err error) {
+	panic("not implemented")
+}
+
+func (f *Fd) Close() error {
+	panic("not implemented")
+}
+
+func (f *Fd) Name() string {
+	panic("not implemented")
+}
+
+func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
+	panic("not implemented")
+}
+
+func (f *Fd) Write(p []byte) (n int, err error) {
+	panic("not implemented")
+}
+
+func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
+	panic("not implemented")
+}
+
+func (f *Fd) Seek(offset int64, whence int) (int64, error) {
+	panic("not implemented")
+}
+
+func (dir *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
+	panic("not implemented")
 }
