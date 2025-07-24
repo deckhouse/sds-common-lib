@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs/mockfs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,10 +30,10 @@ import (
 
 // Positive: absolute path when current directory is root
 func Test_makeRelativePath_absolute_path(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "/a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -41,10 +42,10 @@ func Test_makeRelativePath_absolute_path(t *testing.T) {
 
 // Positive: absolute path that is not normalized (contains ".." and trailing "/")
 func Test_makeRelativePath_absolute_not_normalized_path(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "/a/../b/c/")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/../b/c/")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -53,10 +54,10 @@ func Test_makeRelativePath_absolute_not_normalized_path(t *testing.T) {
 
 // Positive: relative path when current directory is root
 func Test_makeRelativePath_relative_path_with_root_cwd(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -65,14 +66,14 @@ func Test_makeRelativePath_relative_path_with_root_cwd(t *testing.T) {
 
 // Positive: absolute path when current directory is not root
 func Test_makeRelativePath_absolute_path_with_different_cwd(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
 	fs.Curdir = dirA
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "/a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
 	assert.Equal(t, "a/b/c", p, "Invalid path")
@@ -80,14 +81,14 @@ func Test_makeRelativePath_absolute_path_with_different_cwd(t *testing.T) {
 
 // Positive: relative path when current directory is a subdirectory
 func Test_makeRelativePath_relative_path_with_different_cwd(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
 	fs.Curdir = dirA
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "b/c", p, "Invalid path")
@@ -95,14 +96,14 @@ func Test_makeRelativePath_relative_path_with_different_cwd(t *testing.T) {
 
 // Positive: relative path containing ".." segments from a subdirectory
 func Test_makeRelativePath_relative_path_with_different_cwd_and_up(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
 	fs.Curdir = dirA
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "../b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "../b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "../b/c", p, "Invalid path")
@@ -110,14 +111,14 @@ func Test_makeRelativePath_relative_path_with_different_cwd_and_up(t *testing.T)
 
 // Positive: relative path not normalized (contains "/../" and trailing "/") from a subdirectory
 func Test_makeRelativePath_relative_not_normalized_with_different_cwd(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
 	fs.Curdir = dirA
 
-	curdir, p, err := fs.makeRelativePath(fs.Curdir, "b/../c/d/")
+	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "b/../c/d/")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "c/d", p, "Invalid path")
@@ -129,7 +130,7 @@ func Test_makeRelativePath_relative_not_normalized_with_different_cwd(t *testing
 
 // Positive: create root directory
 func Test_CreateFile_root_success(t *testing.T) {
-	root, err := CreateFile(nil, "/", os.ModeDir)
+	root, err := mockfs.CreateFile(nil, "/", os.ModeDir)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "/", root.Path, "Root path invalid")
@@ -146,10 +147,10 @@ func Test_CreateFile_child_success(t *testing.T) {
 	// └── a
 	//     └── b.txt
 
-	root, _ := CreateFile(nil, "/", os.ModeDir)
-	dirA, err := CreateFile(root, "a", os.ModeDir)
+	root, _ := mockfs.CreateFile(nil, "/", os.ModeDir)
+	dirA, err := mockfs.CreateFile(root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	fileB, err := CreateFile(dirA, "b.txt", 0)
+	fileB, err := mockfs.CreateFile(dirA, "b.txt", 0)
 	assert.NoError(t, err)
 
 	assert.Same(t, fileB, dirA.Children["b.txt"], "Child not registered in parent map")
@@ -159,28 +160,28 @@ func Test_CreateFile_child_success(t *testing.T) {
 
 // Error: empty name
 func Test_CreateFile_empty_name(t *testing.T) {
-	_, err := CreateFile(nil, "", os.ModeDir)
+	_, err := mockfs.CreateFile(nil, "", os.ModeDir)
 	assert.Error(t, err)
 }
 
 // Error: parent nil but name not '/'
 func Test_CreateFile_parent_nil_non_root(t *testing.T) {
-	_, err := CreateFile(nil, "a", os.ModeDir)
+	_, err := mockfs.CreateFile(nil, "a", os.ModeDir)
 	assert.Error(t, err)
 }
 
 // Error: parent is not directory
 func Test_CreateFile_parent_not_dir(t *testing.T) {
-	root, _ := CreateFile(nil, "/", os.ModeDir)
-	reg, _ := CreateFile(root, "file.txt", 0)
-	_, err := CreateFile(reg, "child", 0)
+	root, _ := mockfs.CreateFile(nil, "/", os.ModeDir)
+	reg, _ := mockfs.CreateFile(root, "file.txt", 0)
+	_, err := mockfs.CreateFile(reg, "child", 0)
 	assert.Error(t, err)
 }
 
 // Error: name contains '/' when parent provided
 func Test_CreateFile_name_with_slash(t *testing.T) {
-	root, _ := CreateFile(nil, "/", os.ModeDir)
-	_, err := CreateFile(root, "a/b", os.ModeDir)
+	root, _ := mockfs.CreateFile(nil, "/", os.ModeDir)
+	_, err := mockfs.CreateFile(root, "a/b", os.ModeDir)
 	assert.Error(t, err)
 }
 
@@ -190,13 +191,13 @@ func Test_CreateFile_name_with_slash(t *testing.T) {
 
 // Positive: simple lookup directory with absolute path
 func Test_GetFile_root_simple(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 
-	fileA, err := CreateFile(&fs.Root, "a", 0)
+	fileA, err := mockfs.CreateFile(&fs.Root, "a", 0)
 	assert.NoError(t, err)
 
 	got, err := fs.GetFile("/a")
@@ -206,7 +207,7 @@ func Test_GetFile_root_simple(t *testing.T) {
 
 // Nested lookup directory with absolute path ("/a/b/file.txt")
 func Test_GetFile_root_nested(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -214,11 +215,11 @@ func Test_GetFile_root_nested(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := CreateFile(dirA, "b", os.ModeDir)
+	dirB, err := mockfs.CreateFile(dirA, "b", os.ModeDir)
 	assert.NoError(t, err)
-	fileC, err := CreateFile(dirB, "file.txt", 0)
+	fileC, err := mockfs.CreateFile(dirB, "file.txt", 0)
 	assert.NoError(t, err)
 
 	got, err := fs.GetFile("/a/b/file.txt")
@@ -228,7 +229,7 @@ func Test_GetFile_root_nested(t *testing.T) {
 
 // Positive: lookup when current directory is not the root (curdir = /a)
 func Test_GetFile_non_root_curdir(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -236,11 +237,11 @@ func Test_GetFile_non_root_curdir(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := CreateFile(dirA, "b", os.ModeDir)
+	dirB, err := mockfs.CreateFile(dirA, "b", os.ModeDir)
 	assert.NoError(t, err)
-	fileC, err := CreateFile(dirB, "file.txt", 0)
+	fileC, err := mockfs.CreateFile(dirB, "file.txt", 0)
 	assert.NoError(t, err)
 
 	fs.Curdir = dirA
@@ -251,7 +252,7 @@ func Test_GetFile_non_root_curdir(t *testing.T) {
 
 // Positive: relative path with "../"
 func Test_GetFile_relative_up_path(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -260,11 +261,11 @@ func Test_GetFile_relative_up_path(t *testing.T) {
 	//     └── foo
 
 	// Create /a and /b directories
-	dirA, err := CreateFile(&fs.Root, "a", os.ModeDir)
+	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := CreateFile(&fs.Root, "b", os.ModeDir)
+	dirB, err := mockfs.CreateFile(&fs.Root, "b", os.ModeDir)
 	assert.NoError(t, err)
-	target, err := CreateFile(dirB, "foo", 0)
+	target, err := mockfs.CreateFile(dirB, "foo", 0)
 	assert.NoError(t, err)
 
 	// Current directory set to /a
@@ -277,16 +278,16 @@ func Test_GetFile_relative_up_path(t *testing.T) {
 
 // Positive: symlink pointing to a regular file in the same directory
 func Test_GetFile_symlink_simple(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
 	// ├── target.txt
 	// └── link.txt -> /target.txt
 
-	target, err := CreateFile(&fs.Root, "target.txt", 0)
+	target, err := mockfs.CreateFile(&fs.Root, "target.txt", 0)
 	assert.NoError(t, err)
-	link, err := CreateFile(&fs.Root, "link.txt", os.ModeSymlink)
+	link, err := mockfs.CreateFile(&fs.Root, "link.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link.LinkSource = "/target.txt"
 
@@ -297,7 +298,7 @@ func Test_GetFile_symlink_simple(t *testing.T) {
 
 // Positive: recursive symlink: link2 -> link1 -> target
 func Test_GetFile_symlink_recursive(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -305,14 +306,14 @@ func Test_GetFile_symlink_recursive(t *testing.T) {
 	// ├── link1.txt -> /target.txt
 	// └── link2.txt -> /link1.txt
 
-	target, err := CreateFile(&fs.Root, "target.txt", 0)
+	target, err := mockfs.CreateFile(&fs.Root, "target.txt", 0)
 	assert.NoError(t, err)
 
-	link1, err := CreateFile(&fs.Root, "link1.txt", os.ModeSymlink)
+	link1, err := mockfs.CreateFile(&fs.Root, "link1.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link1.LinkSource = "/target.txt"
 
-	link2, err := CreateFile(&fs.Root, "link2.txt", os.ModeSymlink)
+	link2, err := mockfs.CreateFile(&fs.Root, "link2.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link2.LinkSource = "/link1.txt"
 
@@ -323,7 +324,7 @@ func Test_GetFile_symlink_recursive(t *testing.T) {
 
 // Positive: symlink directory resolution: /link/foo where /link -> /bar
 func Test_GetFile_symlink_directory(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -332,13 +333,13 @@ func Test_GetFile_symlink_directory(t *testing.T) {
 	// └── link -> /bar
 
 	// Create /bar directory with a file foo inside
-	barDir, err := CreateFile(&fs.Root, "bar", os.ModeDir)
+	barDir, err := mockfs.CreateFile(&fs.Root, "bar", os.ModeDir)
 	assert.NoError(t, err)
-	fooFile, err := CreateFile(barDir, "foo", 0)
+	fooFile, err := mockfs.CreateFile(barDir, "foo", 0)
 	assert.NoError(t, err)
 
 	// Create symlink /link that points to /bar
-	linkDir, err := CreateFile(&fs.Root, "link", os.ModeSymlink)
+	linkDir, err := mockfs.CreateFile(&fs.Root, "link", os.ModeSymlink)
 	assert.NoError(t, err)
 	linkDir.LinkSource = "/bar"
 
@@ -349,7 +350,7 @@ func Test_GetFile_symlink_directory(t *testing.T) {
 
 // Positive: symlink with relative path: dir1/dir2/sym -> ../target
 func Test_GetFile_symlink_relative_path(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
@@ -359,17 +360,17 @@ func Test_GetFile_symlink_relative_path(t *testing.T) {
 	//     └── sym -> ../target
 
 	// Construct /dir1/target
-	dir1, err := CreateFile(&fs.Root, "dir1", os.ModeDir)
+	dir1, err := mockfs.CreateFile(&fs.Root, "dir1", os.ModeDir)
 	assert.NoError(t, err)
-	target, err := CreateFile(dir1, "target", 0)
+	target, err := mockfs.CreateFile(dir1, "target", 0)
 	assert.NoError(t, err)
 
 	// Construct /dir1/dir2
-	dir2, err := CreateFile(dir1, "dir2", os.ModeDir)
+	dir2, err := mockfs.CreateFile(dir1, "dir2", os.ModeDir)
 	assert.NoError(t, err)
 
 	// Symlink /dir1/dir2/sym that points to ../target (relative to /dir1/dir2)
-	sym, err := CreateFile(dir2, "sym", os.ModeSymlink)
+	sym, err := mockfs.CreateFile(dir2, "sym", os.ModeSymlink)
 	assert.NoError(t, err)
 	sym.LinkSource = "../target"
 
@@ -380,7 +381,7 @@ func Test_GetFile_symlink_relative_path(t *testing.T) {
 
 // Negative: missing file should return an error
 func Test_GetFile_missing_file(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	_, err = fs.GetFile("does/not/exist")
@@ -389,13 +390,13 @@ func Test_GetFile_missing_file(t *testing.T) {
 
 // Negative: broken symlink (points to non-existing file) should return an error
 func Test_GetFile_broken_symlink(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
 	// /
 	// └── broken.txt -> /nonexistent
 
-	link, err := CreateFile(&fs.Root, "broken.txt", os.ModeSymlink)
+	link, err := mockfs.CreateFile(&fs.Root, "broken.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link.LinkSource = "/nonexistent"
 
@@ -405,10 +406,10 @@ func Test_GetFile_broken_symlink(t *testing.T) {
 
 // Negative: wrong file type in the middle of the path (expect directory, got regular file)
 func Test_GetFile_wrong_file_type(t *testing.T) {
-	fs, err := NewFsMock()
+	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	fileA, err := CreateFile(&fs.Root, "a", 0) // regular file, NOT a directory
+	fileA, err := mockfs.CreateFile(&fs.Root, "a", 0) // regular file, NOT a directory
 	assert.NoError(t, err)
 	_, _ = fileA, err
 

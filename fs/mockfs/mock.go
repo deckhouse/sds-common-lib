@@ -101,7 +101,7 @@ func (m *MockFs) GetFile(p string) (*File, error) {
 	return m.getFileRelative(m.Curdir, p)
 }
 
-func (m *MockFs) makeRelativePath(curdir *File, p string) (*File, string, error) {
+func (m *MockFs) MakeRelativePath(curdir *File, p string) (*File, string, error) {
 	if filepath.IsAbs(p) {
 		var err error
 		curdir = &m.Root
@@ -131,7 +131,7 @@ func (m *MockFs) getFileRelative(curdir *File, p string) (*File, error) {
 // followLink = true:  /dir1/file1 -> /file2 (regular file)
 // followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
 func (m *MockFs) getFileRelativeEx(curdir *File, p string, followLink bool) (*File, error) {
-	curdir, p, err := m.makeRelativePath(curdir, p)
+	curdir, p, err := m.MakeRelativePath(curdir, p)
 	if err != nil {
 		return nil, err
 	}
@@ -179,4 +179,26 @@ func splitPath(p string) (head string, tail string) {
 		tail = parts[1]
 	}
 	return head, tail
+}
+
+// Creates a new entry by the given path
+func (m *MockFs) createFileByPath(path string, mode os.FileMode) (*File, error) {
+	parentPath := filepath.Dir(path)
+	dirName := filepath.Base(path)
+
+	parent, err := m.GetFile(parentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if !parent.Mode.IsDir() {
+		return nil, fmt.Errorf("parent is not directory: %s", parentPath)
+	}
+
+	if _, exists := parent.Children[dirName]; exists {
+		return nil, fmt.Errorf("file exists: %s", path)
+	}
+
+	file, err := CreateFile(parent, dirName, mode)
+	return file, err
 }

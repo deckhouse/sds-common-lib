@@ -17,8 +17,11 @@ limitations under the License.
 package mockfs
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/deckhouse/sds-common-lib/fs/fsext"
 )
@@ -32,11 +35,38 @@ func (m *MockFs) Open(name string) (fsext.File, error) {
 }
 
 // =====================
+// `fs.StatFS` interface implementation for `MockFs`
+// =====================
+
+func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
+	f, err := m.GetFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return createFileInfo(f), nil
+}
+
+func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
+	file, err := m.getFileRelativeEx(m.Curdir, name, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return createFileInfo(file), nil
+}
+
+// =====================
 // `fs.ReadDirFS` interface implementation for `MockFs`
 // =====================
 
 func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
-	panic("not implemented")
+	file, err := m.GetFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return file.readDir()
 }
 
 // =====================
@@ -44,11 +74,22 @@ func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
 // =====================
 
 func (m *MockFs) Chdir(dir string) error {
-	panic("not implemented")
+	f, err := m.GetFile(dir)
+	if err != nil {
+		return err
+	}
+	if !f.Mode.IsDir() {
+		return fmt.Errorf("not a directory: %s", dir)
+	}
+	m.Curdir = f
+	return nil
 }
 
 func (m *MockFs) Getwd() (string, error) {
-	panic("not implemented")
+	if m.Curdir == nil {
+		return "", fmt.Errorf("current directory not set")
+	}
+	return m.Curdir.Path, nil
 }
 
 // =====================
@@ -56,11 +97,37 @@ func (m *MockFs) Getwd() (string, error) {
 // =====================
 
 func (m *MockFs) Mkdir(name string, perm os.FileMode) error {
-	panic("not implemented")
+	_, err := m.createFileByPath(name, os.ModeDir|perm)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
-	panic("not implemented")
+	curdir, p, err := m.MakeRelativePath(m.Curdir, path)
+	if err != nil {
+		return err
+	}
+
+	parts := strings.Split(filepath.Clean(p), string(filepath.Separator))
+	dir := curdir
+
+	for _, part := range parts {
+		child, ok := dir.Children[part]
+		if !ok {
+			// create new directory
+			child, err = CreateFile(dir, part, os.ModeDir|perm)
+			if err != nil {
+				return err
+			}
+		} else if !child.Mode.IsDir() {
+			return fmt.Errorf("%s is not a directory", child.Path)
+		}
+		dir = child
+	}
+	return nil
 }
 
 // =====================
@@ -68,7 +135,12 @@ func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
 // =====================
 
 func (m *MockFs) Create(name string) (fs.File, error) {
-	panic("not implemented")
+	file, err := m.createFileByPath(name, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return newFd(file), nil
 }
 
 // =====================
@@ -76,9 +148,24 @@ func (m *MockFs) Create(name string) (fs.File, error) {
 // =====================
 
 func (m *MockFs) Symlink(oldname, newname string) error {
-	panic("not implemented")
+	link, err := m.createFileByPath(newname, os.ModeSymlink)
+	if err != nil {
+		return err
+	}
+
+	link.LinkSource = oldname
+	return nil
 }
 
 func (m *MockFs) ReadLink(name string) (string, error) {
-	panic("not implemented")
+	file, err := m.getFileRelativeEx(m.Curdir, name, false)
+	if err != nil {
+		return "", err
+	}
+
+	if file.Mode&os.ModeSymlink == 0 {
+		return "", fmt.Errorf("not a symlink: %s", name)
+	}
+
+	return file.LinkSource, nil
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package mockfs
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"time"
@@ -34,8 +35,31 @@ type File struct {
 	Children   map[string]*File // children of the file (if the file is a directory)
 }
 
+func (f *File) stat() (fs.FileInfo, error) {
+	return createFileInfo(f), nil
+}
+
+func (dir *File) readDir() ([]fs.DirEntry, error) {
+	if !dir.Mode.IsDir() {
+		return nil, fmt.Errorf("not a directory: %s", dir.Name)
+	}
+
+	entries := make([]fs.DirEntry, 0, len(dir.Children)-2)
+	for child := range dir.Children {
+		if child != "." && child != ".." {
+			entries = append(entries, dirEntry{f: dir.Children[child]})
+		}
+	}
+
+	return entries, nil
+}
+
 // File descriptor ("opened file")
 type Fd struct{}
+
+func newFd(file *File) *Fd {
+	return &Fd{}
+}
 
 // =====================
 // `fsext.File` interface implementation for `Fd`
