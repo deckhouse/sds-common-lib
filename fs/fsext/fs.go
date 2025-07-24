@@ -27,9 +27,9 @@ import (
 // File system abstraction interface
 // Extends `fs.FS` interface with additional methods
 type Fs interface {
-	fs.FS
+	Open(name string) (File, error)
+	ReadDir(name string) ([]fs.DirEntry, error)
 	Stat
-	fs.ReadDirFS
 	Workdir
 	Mkdir
 	FileCreate
@@ -62,7 +62,7 @@ type Mkdir interface {
 type FileCreate interface {
 	// TODO: it's not clear should we return limited `fs.File` or more
 	// feature-rich `fsext.File`
-	Create(name string) (*fs.File, error)
+	Create(name string) (fs.File, error)
 }
 
 type Symlink interface {
@@ -83,6 +83,7 @@ type ReadSymlink interface {
 // struct os.File actually implements this interface
 type File interface {
 	fs.File
+	fs.ReadDirFile
 	io.ReaderAt
 	io.Writer
 	io.WriterAt

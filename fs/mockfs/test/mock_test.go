@@ -17,12 +17,22 @@ limitations under the License.
 package mockfs
 
 import (
+	"io/fs"
 	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs/fsext"
 	"github.com/deckhouse/sds-common-lib/fs/mockfs"
 	"github.com/stretchr/testify/assert"
 )
+
+// Interface validation (check if compiles)
+func requiresFsInterface() {
+	var fsys fsext.Fs = &mockfs.MockFs{}
+	var file1 fsext.File
+	file1, _ = fsys.Open("foo")
+	var _ fs.File = file1
+}
 
 // ================================
 // Tests for `makeRelativePath`

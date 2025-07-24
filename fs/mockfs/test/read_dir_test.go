@@ -18,7 +18,6 @@ package mockfs
 
 import (
 	"os"
-	"sort"
 	"testing"
 
 	"github.com/deckhouse/sds-common-lib/fs/mockfs"
@@ -41,16 +40,17 @@ func Test_ReadDir_basic(t *testing.T) {
 
 	dir, err := mockfs.CreateFile(&fsys.Root, "dir", os.ModeDir)
 	assert.NoError(t, err)
-	_, _ = mockfs.CreateFile(dir, "file1", 0)
-	_, _ = mockfs.CreateFile(dir, "file2", 0)
+	f1, _ := mockfs.CreateFile(dir, "file1", 0)
+	f2, _ := mockfs.CreateFile(dir, "file2", 0)
 
-	entries, err := fsys.ReadDir("dir")
+	fd, err := fsys.Open("/dir")
 	assert.NoError(t, err)
-	assert.Len(t, entries, 2, "Expected exactly two entries in directory listing")
 
-	gotNames := []string{entries[0].Name(), entries[1].Name()}
-	sort.Strings(gotNames)
-	assert.Equal(t, []string{"file1", "file2"}, gotNames, "Directory contents mismatch")
+	entries, err := fd.ReadDir(0)
+	assert.NoError(t, err)
+	assert.Len(t, entries, 2)
+	assert.Equal(t, f1.Name, entries[0].Name())
+	assert.Equal(t, f2.Name, entries[1].Name())
 }
 
 // Negative: file not found

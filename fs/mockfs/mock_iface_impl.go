@@ -31,7 +31,12 @@ import (
 // =====================
 
 func (m *MockFs) Open(name string) (fsext.File, error) {
-	panic("not implemented")
+	file, err := m.GetFile(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return newFd(file), nil
 }
 
 // =====================

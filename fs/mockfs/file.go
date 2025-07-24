@@ -18,12 +18,14 @@ package mockfs
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"sort"
 	"time"
 )
 
-// Fake file system entry
+// Fake File system entry
 type File struct {
 	Name       string           // base name of the file
 	Path       string           // full path of the file
@@ -55,18 +57,74 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 }
 
 // File descriptor ("opened file")
-type Fd struct{}
+type Fd struct {
+	file          *File
+	isOpen        bool
+	readDirOffset int
+}
 
 func newFd(file *File) *Fd {
-	return &Fd{}
+	return &Fd{file: file, isOpen: true, readDirOffset: 0}
 }
 
 // =====================
 // `fsext.File` interface implementation for `Fd`
 // =====================
 
+func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
+	dir := f.file
+
+	if !dir.Mode.IsDir() {
+		return nil, fmt.Errorf("not a directory: %s", dir.Name)
+	}
+
+	// Don't count "." and ".."
+	nChildren := len(dir.Children) - 2
+
+	if n == 0 {
+		n = nChildren
+	}
+
+	children := sortDir(dir.Children, func(a, b *File) bool {
+		return a.Name < b.Name
+	})
+
+	// Handle OEF
+	if f.readDirOffset >= len(children) {
+		return []fs.DirEntry{}, io.EOF
+	}
+
+	// Take n children starting from offset
+	entries := make([]fs.DirEntry, 0, n)
+	for i := 0; i < n && f.readDirOffset < len(children); i++ {
+		entries = append(entries, dirEntry{f: children[f.readDirOffset]})
+		f.readDirOffset++
+	}
+
+	return entries, nil
+}
+
+func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
+	slice := make([]*File, 0, len(dict)-2)
+	for file := range dict {
+		if file != "." && file != ".." {
+			slice = append(slice, dict[file])
+		}
+	}
+
+	sort.Slice(slice, func(i, j int) bool {
+		return comp(slice[i], slice[j])
+	})
+
+	return slice
+}
+
 func (f *Fd) Stat() (fs.FileInfo, error) {
-	panic("not implemented")
+	if !f.isOpen {
+		return nil, fs.ErrClosed
+	}
+
+	return f.file.stat()
 }
 
 func (f *Fd) Read(p []byte) (n int, err error) {
@@ -74,11 +132,16 @@ func (f *Fd) Read(p []byte) (n int, err error) {
 }
 
 func (f *Fd) Close() error {
-	panic("not implemented")
+	if !f.isOpen {
+		return fs.ErrClosed
+	}
+
+	f.isOpen = false
+	return nil
 }
 
 func (f *Fd) Name() string {
-	panic("not implemented")
+	return f.file.Name
 }
 
 func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
@@ -94,9 +157,5 @@ func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *Fd) Seek(offset int64, whence int) (int64, error) {
-	panic("not implemented")
-}
-
-func (dir *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
 	panic("not implemented")
 }
