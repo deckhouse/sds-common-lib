@@ -25,6 +25,14 @@ import (
 	"time"
 )
 
+// Interface for fake file content
+// It allows flexible fake file content generation including on the fly
+// generation
+type FileContent interface {
+	ReadAt(file *File, p []byte, off int64) (n int, err error)
+	WriteAt(file *File, p []byte, off int64) (n int, err error)
+}
+
 // Fake File system entry
 type File struct {
 	Name       string           // base name of the file
@@ -35,6 +43,7 @@ type File struct {
 	LinkSource string           // symlink source (path to the file)
 	Parent     *File            // parent directory
 	Children   map[string]*File // children of the file (if the file is a directory)
+	Content    FileContent      // File read/write interface
 }
 
 func (f *File) stat() (fs.FileInfo, error) {
@@ -61,6 +70,7 @@ type Fd struct {
 	file          *File
 	isOpen        bool
 	readDirOffset int
+	seekOffset    int64 // File read/write positiob
 }
 
 func newFd(file *File) *Fd {
@@ -127,10 +137,6 @@ func (f *Fd) Stat() (fs.FileInfo, error) {
 	return f.file.stat()
 }
 
-func (f *Fd) Read(p []byte) (n int, err error) {
-	panic("not implemented")
-}
-
 func (f *Fd) Close() error {
 	if !f.isOpen {
 		return fs.ErrClosed
@@ -144,18 +150,93 @@ func (f *Fd) Name() string {
 	return f.file.Name
 }
 
+func (f *Fd) Read(p []byte) (n int, err error) {
+	if !f.isOpen {
+		return 0, fs.ErrClosed
+	}
+
+	if f.file.Content == nil {
+		return 0, fmt.Errorf("read operation is not implemented for this file")
+	}
+
+	n, err = f.file.Content.ReadAt(f.file, p, f.seekOffset)
+	if err != nil {
+		return n, err
+	}
+
+	f.seekOffset += int64(n)
+	return n, err
+}
+
 func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
-	panic("not implemented")
+	if !f.isOpen {
+		return 0, fs.ErrClosed
+	}
+
+	if f.file.Content == nil {
+		return 0, fmt.Errorf("read operation is not implemented for this file")
+	}
+
+	return f.file.Content.ReadAt(f.file, p, off)
 }
 
 func (f *Fd) Write(p []byte) (n int, err error) {
-	panic("not implemented")
+	if !f.isOpen {
+		return 0, fs.ErrClosed
+	}
+
+	if f.file.Content == nil {
+		return 0, fmt.Errorf("write operation is not implemented for this file")
+	}
+
+	n, err = f.file.Content.WriteAt(f.file, p, f.seekOffset)
+	if err != nil {
+		return n, err
+	}
+
+	f.seekOffset += int64(n)
+	return n, err
 }
 
 func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
-	panic("not implemented")
+	if !f.isOpen {
+		return 0, fs.ErrClosed
+	}
+
+	if f.file.Content == nil {
+		return 0, fmt.Errorf("write operation is not implemented for this file")
+	}
+
+	return f.file.Content.WriteAt(f.file, p, off)
 }
 
 func (f *Fd) Seek(offset int64, whence int) (int64, error) {
-	panic("not implemented")
+	// Ensure the descriptor is open
+	if !f.isOpen {
+		return 0, fs.ErrClosed
+	}
+
+	var base int64
+	switch whence {
+	case io.SeekStart: // relative to the start of the file
+		base = 0
+	case io.SeekCurrent: // relative to the current offset
+		base = f.seekOffset
+	case io.SeekEnd: // relative to the end of the file
+		base = f.file.Size
+	default:
+		return 0, fmt.Errorf("invalid whence: %d", whence)
+	}
+
+	newOffset := base + offset
+	if newOffset < 0 {
+		return 0, fmt.Errorf("negative resulting offset")
+	}
+
+	if newOffset > f.file.Size {
+		return 0, fmt.Errorf("offset %d beyond file size %d", newOffset, f.file.Size)
+	}
+
+	f.seekOffset = newOffset
+	return newOffset, nil
 }

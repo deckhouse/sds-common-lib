@@ -222,3 +222,83 @@ func Test_File_ReadDir_closed(t *testing.T) {
 	_, err = fd.ReadDir(0)
 	assert.Error(t, err)
 }
+
+// Seek
+
+// Positive: seek using different whence values
+func Test_File_Seek_Positive(t *testing.T) {
+	fsys, err := mockfs.NewFsMock()
+	assert.NoError(t, err)
+
+	// Create regular file and set its size manually for the test
+	file, err := mockfs.CreateFile(&fsys.Root, "file", 0)
+	assert.NoError(t, err)
+	file.Size = 100
+
+	fd, err := fsys.Open("/file")
+	assert.NoError(t, err)
+
+	// From start
+	pos, err := fd.Seek(10, io.SeekStart)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(10), pos)
+
+	// From current (should be 10 + 5)
+	pos, err = fd.Seek(5, io.SeekCurrent)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(15), pos)
+
+	// From end (100 - 10 = 90)
+	pos, err = fd.Seek(-10, io.SeekEnd)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(90), pos)
+}
+
+// Negative: seek out of bounds (positive and negative)
+func Test_File_Seek_OutOfBounds(t *testing.T) {
+	fsys, err := mockfs.NewFsMock()
+	assert.NoError(t, err)
+
+	file, err := mockfs.CreateFile(&fsys.Root, "file", 0)
+	assert.NoError(t, err)
+	file.Size = 50
+
+	fd, err := fsys.Open("/file")
+	assert.NoError(t, err)
+
+	// Negative offset beyond file start
+	_, err = fd.Seek(-1, io.SeekStart)
+	assert.Error(t, err)
+
+	// Positive offset beyond file size
+	_, err = fd.Seek(100, io.SeekStart)
+	assert.Error(t, err)
+
+	// Positive offset to file end
+	_, err = fd.Seek(1, io.SeekEnd)
+	assert.Error(t, err)
+
+	// Move to 25 then attempt to seek current +30 => 55 > size
+	_, err = fd.Seek(25, io.SeekStart)
+	assert.NoError(t, err)
+
+	_, err = fd.Seek(30, io.SeekCurrent)
+	assert.Error(t, err)
+}
+
+// Negative: invalid whence value
+func Test_File_Seek_InvalidWhence(t *testing.T) {
+	fsys, err := mockfs.NewFsMock()
+	assert.NoError(t, err)
+
+	file, err := mockfs.CreateFile(&fsys.Root, "file", 0)
+	assert.NoError(t, err)
+	file.Size = 10
+
+	fd, err := fsys.Open("/file")
+	assert.NoError(t, err)
+
+	// 99 is not a valid io.Seek* constant
+	_, err = fd.Seek(0, 99)
+	assert.Error(t, err)
+}
