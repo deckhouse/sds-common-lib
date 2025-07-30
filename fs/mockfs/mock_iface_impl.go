@@ -33,7 +33,7 @@ import (
 func (m *MockFs) Open(name string) (fsext.File, error) {
 	file, err := m.GetFile(name)
 	if err != nil {
-		return nil, err
+		return nil, toPathError(err, "open", name)
 	}
 
 	return newFd(file), nil
@@ -46,7 +46,7 @@ func (m *MockFs) Open(name string) (fsext.File, error) {
 func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
 	f, err := m.GetFile(name)
 	if err != nil {
-		return nil, err
+		return nil, toPathError(err, "stat", name)
 	}
 
 	return createFileInfo(f), nil
@@ -55,7 +55,7 @@ func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
 func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
 	file, err := m.getFileRelativeEx(m.Curdir, name, false)
 	if err != nil {
-		return nil, err
+		return nil, toPathError(err, "lstat", name)
 	}
 
 	return createFileInfo(file), nil
@@ -68,7 +68,7 @@ func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
 func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
 	file, err := m.GetFile(name)
 	if err != nil {
-		return nil, err
+		return nil, toPathError(err, "readdir", name)
 	}
 
 	return file.readDir()
@@ -81,10 +81,10 @@ func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
 func (m *MockFs) Chdir(dir string) error {
 	f, err := m.GetFile(dir)
 	if err != nil {
-		return err
+		return toPathError(err, "chdir", dir)
 	}
 	if !f.Mode.IsDir() {
-		return fmt.Errorf("not a directory: %s", dir)
+		return toPathError(fmt.Errorf("not a directory: %s", dir), "chdir", dir)
 	}
 	m.Curdir = f
 	return nil
@@ -92,7 +92,8 @@ func (m *MockFs) Chdir(dir string) error {
 
 func (m *MockFs) Getwd() (string, error) {
 	if m.Curdir == nil {
-		return "", fmt.Errorf("current directory not set")
+		// Mock invariant violation
+		panic("current directory is not set")
 	}
 	return m.Curdir.Path, nil
 }
@@ -128,7 +129,7 @@ func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
 				return err
 			}
 		} else if !child.Mode.IsDir() {
-			return fmt.Errorf("%s is not a directory", child.Path)
+			return toPathError(fmt.Errorf("%s is not a directory", child.Path), "mkdirall", path)
 		}
 		dir = child
 	}
@@ -169,7 +170,7 @@ func (m *MockFs) ReadLink(name string) (string, error) {
 	}
 
 	if file.Mode&os.ModeSymlink == 0 {
-		return "", fmt.Errorf("not a symlink: %s", name)
+		return "", toPathError(fmt.Errorf("not a symlink: %s", name), "readlink", name)
 	}
 
 	return file.LinkSource, nil

@@ -17,6 +17,7 @@ limitations under the License.
 package mockfs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -85,7 +86,7 @@ func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
 	dir := f.file
 
 	if !dir.Mode.IsDir() {
-		return nil, fmt.Errorf("not a directory: %s", dir.Name)
+		return nil, toPathError(fmt.Errorf("not a directory: %s", dir.Name), "readdir", dir.Name)
 	}
 
 	// Don't count "." and ".."
@@ -156,7 +157,7 @@ func (f *Fd) Read(p []byte) (n int, err error) {
 	}
 
 	if f.file.Content == nil {
-		return 0, fmt.Errorf("read operation is not implemented for this file")
+		return 0, errors.New("read operation is not implemented for this file")
 	}
 
 	n, err = f.file.Content.ReadAt(f.file, p, f.seekOffset)
@@ -174,7 +175,7 @@ func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
 	}
 
 	if f.file.Content == nil {
-		return 0, fmt.Errorf("read operation is not implemented for this file")
+		return 0, errors.New("read operation is not implemented for this file")
 	}
 
 	return f.file.Content.ReadAt(f.file, p, off)
@@ -186,7 +187,7 @@ func (f *Fd) Write(p []byte) (n int, err error) {
 	}
 
 	if f.file.Content == nil {
-		return 0, fmt.Errorf("write operation is not implemented for this file")
+		return 0, errors.New("write operation is not implemented for this file")
 	}
 
 	n, err = f.file.Content.WriteAt(f.file, p, f.seekOffset)
@@ -204,7 +205,7 @@ func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 
 	if f.file.Content == nil {
-		return 0, fmt.Errorf("write operation is not implemented for this file")
+		return 0, errors.New("write operation is not implemented for this file")
 	}
 
 	return f.file.Content.WriteAt(f.file, p, off)
@@ -230,7 +231,7 @@ func (f *Fd) Seek(offset int64, whence int) (int64, error) {
 
 	newOffset := base + offset
 	if newOffset < 0 {
-		return 0, fmt.Errorf("negative resulting offset")
+		return 0, errors.New("negative resulting offset")
 	}
 
 	if newOffset > f.file.Size {

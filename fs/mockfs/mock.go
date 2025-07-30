@@ -17,7 +17,9 @@ limitations under the License.
 package mockfs
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,19 +56,19 @@ func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
 	var path string
 
 	if name == "" {
-		return nil, fmt.Errorf("name is empty")
+		return nil, errors.New("name is empty")
 	}
 
 	if parent == nil && name != "/" {
-		return nil, fmt.Errorf("only root directory has no parent")
+		return nil, errors.New("only root directory has no parent")
 	}
 
 	if parent != nil && !parent.Mode.IsDir() {
-		return nil, fmt.Errorf("parent is not a directory")
+		return nil, errors.New("parent is not a directory")
 	}
 
 	if parent != nil && strings.Contains(name, "/") {
-		return nil, fmt.Errorf("file name can't contain '/'")
+		return nil, errors.New("file name can't contain '/'")
 	}
 
 	newFile := &File{
@@ -201,4 +203,13 @@ func (m *MockFs) createFileByPath(path string, mode os.FileMode) (*File, error) 
 
 	file, err := CreateFile(parent, dirName, mode)
 	return file, err
+}
+
+// Converts error to `fs.PathError`
+func toPathError(err error, op string, path string) error {
+	return &fs.PathError{
+		Op:   op,
+		Path: path,
+		Err:  err,
+	}
 }
