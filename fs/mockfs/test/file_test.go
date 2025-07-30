@@ -200,6 +200,11 @@ func TestFileReadDirChunks(t *testing.T) {
 	entries, err = fd.ReadDir(3)
 	assert.Len(t, entries, 0)
 	assert.ErrorIs(t, err, io.EOF)
+
+	// Subsequent calls return EOF
+	entries, err = fd.ReadDir(3)
+	assert.Len(t, entries, 0)
+	assert.ErrorIs(t, err, io.EOF)
 }
 
 // Negative: file closed

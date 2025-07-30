@@ -68,10 +68,11 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 
 // File descriptor ("opened file")
 type Fd struct {
-	file          *File
-	isOpen        bool
-	readDirOffset int
-	seekOffset    int64 // File read/write positiob
+	file           *File
+	isOpen         bool
+	seekOffset     int64 // File read/write position
+	readDirOffset  int
+	sortedChildren []*File // Cached dir entries for ReadDir
 }
 
 func newFd(file *File) *Fd {
@@ -96,19 +97,22 @@ func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
 		n = nChildren
 	}
 
-	children := sortDir(dir.Children, func(a, b *File) bool {
-		return a.Name < b.Name
-	})
+	if f.readDirOffset == 0 {
+		f.sortedChildren = sortDir(dir.Children, func(a, b *File) bool {
+			return a.Name < b.Name
+		})
+	}
 
 	// Handle OEF
-	if f.readDirOffset >= len(children) {
+	if f.readDirOffset >= len(f.sortedChildren) {
+		f.sortedChildren = nil // we don't need it anymore so free memory
 		return []fs.DirEntry{}, io.EOF
 	}
 
 	// Take n children starting from offset
 	entries := make([]fs.DirEntry, 0, n)
-	for i := 0; i < n && f.readDirOffset < len(children); i++ {
-		entries = append(entries, dirEntry{f: children[f.readDirOffset]})
+	for i := 0; i < n && f.readDirOffset < len(f.sortedChildren); i++ {
+		entries = append(entries, dirEntry{f: f.sortedChildren[f.readDirOffset]})
 		f.readDirOffset++
 	}
 
