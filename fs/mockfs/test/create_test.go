@@ -27,7 +27,7 @@ import (
 // Tests for `Create`
 // ================================
 
-func Test_Create_file(t *testing.T) {
+func TestCreate(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -48,7 +48,7 @@ func Test_Create_file(t *testing.T) {
 }
 
 // Negative: file already exists
-func Test_Create_file_already_exists(t *testing.T) {
+func TestCreateFileAlreadyExists(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -69,7 +69,7 @@ func Test_Create_file_already_exists(t *testing.T) {
 }
 
 // Negative: directory not found
-func Test_Create_directory_not_found(t *testing.T) {
+func TestCreateDirectoryNotFound(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -79,7 +79,7 @@ func Test_Create_directory_not_found(t *testing.T) {
 }
 
 // Negative: parent is not a directory
-func Test_Create_parent_not_directory(t *testing.T) {
+func TestCreateParentNotDirectory(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

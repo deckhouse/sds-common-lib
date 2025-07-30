@@ -48,7 +48,7 @@ type File struct {
 }
 
 func (f *File) stat() (fs.FileInfo, error) {
-	return createFileInfo(f), nil
+	return newFileInfo(f), nil
 }
 
 func (dir *File) readDir() ([]fs.DirEntry, error) {

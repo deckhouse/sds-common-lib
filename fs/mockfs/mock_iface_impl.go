@@ -49,7 +49,7 @@ func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
 		return nil, toPathError(err, "stat", name)
 	}
 
-	return createFileInfo(f), nil
+	return newFileInfo(f), nil
 }
 
 func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
@@ -58,7 +58,7 @@ func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
 		return nil, toPathError(err, "lstat", name)
 	}
 
-	return createFileInfo(file), nil
+	return newFileInfo(file), nil
 }
 
 // =====================

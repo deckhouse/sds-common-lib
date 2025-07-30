@@ -28,7 +28,7 @@ import (
 // ================================
 
 // Positive: single symlink
-func Test_Symlink_and_ReadLink(t *testing.T) {
+func TestSymlinkAndReadLink(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -63,7 +63,7 @@ func Test_Symlink_and_ReadLink(t *testing.T) {
 }
 
 // Positive: symlink to symlink
-func Test_Symlink_and_ReadLink_symlink_to_symlink(t *testing.T) {
+func TestSymlinkAndReadLinkSymlinkToSymlink(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -91,7 +91,7 @@ func Test_Symlink_and_ReadLink_symlink_to_symlink(t *testing.T) {
 }
 
 // Negative: file exists
-func Test_Symlink_file_exists(t *testing.T) {
+func TestSymlinkFileExists(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -106,7 +106,7 @@ func Test_Symlink_file_exists(t *testing.T) {
 }
 
 // Negative: file not found
-func Test_ReadLink_file_not_found(t *testing.T) {
+func TestReadLinkFileNotFound(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

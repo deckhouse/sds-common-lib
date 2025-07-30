@@ -29,7 +29,7 @@ import (
 // ================================
 
 // Positive: stat regular file
-func Test_Stat_regular_file(t *testing.T) {
+func TestStatRegularFile(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -48,7 +48,7 @@ func Test_Stat_regular_file(t *testing.T) {
 }
 
 // Negative: file not found
-func Test_Stat_non_existent_file(t *testing.T) {
+func TestStatNonExistentFile(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -57,7 +57,7 @@ func Test_Stat_non_existent_file(t *testing.T) {
 }
 
 // Positive: symlink
-func Test_Lstat_symlink(t *testing.T) {
+func TestLstatSymlink(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -80,7 +80,7 @@ func Test_Lstat_symlink(t *testing.T) {
 }
 
 // Negative: file not found
-func Test_Lstat_non_existent_file(t *testing.T) {
+func TestLstatNonExistentFile(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

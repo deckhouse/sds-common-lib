@@ -29,7 +29,7 @@ import (
 // ================================
 
 // Positive: create directory in a subdirectory with absolute path
-func Test_Mkdir_absolute_path_in_subdir(t *testing.T) {
+func TestMkdirAbsolutePathInSubdir(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -48,7 +48,7 @@ func Test_Mkdir_absolute_path_in_subdir(t *testing.T) {
 }
 
 // Positive: create directory in a current directory with relative path
-func Test_Mkdir_relative_path_in_cur_dir_with_root_cwd(t *testing.T) {
+func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -64,7 +64,7 @@ func Test_Mkdir_relative_path_in_cur_dir_with_root_cwd(t *testing.T) {
 }
 
 // Positive: create directory in a subdirectory with relative path
-func Test_Mkdir_relative_path_in_subdir_with_root_cwd(t *testing.T) {
+func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -84,7 +84,7 @@ func Test_Mkdir_relative_path_in_subdir_with_root_cwd(t *testing.T) {
 }
 
 // Negative: create directory in a non-existent directory
-func Test_Mkdir_non_existent_parent(t *testing.T) {
+func TestMkdirNonExistentParent(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -93,7 +93,7 @@ func Test_Mkdir_non_existent_parent(t *testing.T) {
 }
 
 // Negative: create directory in a non-directory
-func Test_Mkdir_non_directory(t *testing.T) {
+func TestMkdirNonDirectory(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -105,7 +105,7 @@ func Test_Mkdir_non_directory(t *testing.T) {
 }
 
 // Negative: directory already exists
-func Test_Mkdir_directory_exists(t *testing.T) {
+func TestMkdirDirectoryExists(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -117,7 +117,7 @@ func Test_Mkdir_directory_exists(t *testing.T) {
 }
 
 // Positive: create multiple directories in path
-func Test_MkdirAll_relative_path_with_root(t *testing.T) {
+func TestMkdirAllRelativePathWithRoot(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -139,7 +139,7 @@ func Test_MkdirAll_relative_path_with_root(t *testing.T) {
 }
 
 // Positive: create multiple directories already exists (do nothing)
-func Test_MkdirAll_relative_path_with_existing_dirs(t *testing.T) {
+func TestMkdirAllRelativePathWithExistingDirs(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

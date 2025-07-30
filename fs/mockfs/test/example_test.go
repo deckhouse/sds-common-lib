@@ -62,7 +62,7 @@ func WritesFile(fs fsext.Fs, text string) error {
 }
 
 // Positive: read file
-func Test_ReadsFile(t *testing.T) {
+func TestReadsFile(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -82,7 +82,7 @@ func Test_ReadsFile(t *testing.T) {
 	assert.Equal(t, "Hello, world!", res)
 }
 
-func Test_ReadWrite(t *testing.T) {
+func TestReadWrite(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

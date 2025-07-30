@@ -27,7 +27,7 @@ import (
 
 // Open
 // Negative
-func Test_File_Open(t *testing.T) {
+func TestFileOpen(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -38,7 +38,7 @@ func Test_File_Open(t *testing.T) {
 // Stat
 
 // Positive
-func Test_File_Stat(t *testing.T) {
+func TestFileStat(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -57,7 +57,7 @@ func Test_File_Stat(t *testing.T) {
 }
 
 // Negative: file closed
-func Test_File_Stat_closed(t *testing.T) {
+func TestFileStatClosed(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -77,7 +77,7 @@ func Test_File_Stat_closed(t *testing.T) {
 // Close
 
 // TODO: close, try to close again
-func Test_File_Close(t *testing.T) {
+func TestFileClose(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -97,7 +97,7 @@ func Test_File_Close(t *testing.T) {
 // Name
 
 // Positive
-func Test_File_Name(t *testing.T) {
+func TestFileName(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -112,7 +112,7 @@ func Test_File_Name(t *testing.T) {
 }
 
 // Positive: file closed (safe to call after close)
-func Test_File_Name_closed(t *testing.T) {
+func TestFileNameClosed(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -132,7 +132,7 @@ func Test_File_Name_closed(t *testing.T) {
 // ReadDir
 
 // Positive: read whole content of a directory
-func Test_File_ReadDir(t *testing.T) {
+func TestFileReadDir(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -162,7 +162,7 @@ func Test_File_ReadDir(t *testing.T) {
 }
 
 // Positive: read content of a directory by chunks
-func Test_File_ReadDir_chunks(t *testing.T) {
+func TestFileReadDirChunks(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -203,7 +203,7 @@ func Test_File_ReadDir_chunks(t *testing.T) {
 }
 
 // Negative: file closed
-func Test_File_ReadDir_closed(t *testing.T) {
+func TestFileReadDirClosed(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -226,7 +226,7 @@ func Test_File_ReadDir_closed(t *testing.T) {
 // Seek
 
 // Positive: seek using different whence values
-func Test_File_Seek_Positive(t *testing.T) {
+func TestFileSeekPositive(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -255,7 +255,7 @@ func Test_File_Seek_Positive(t *testing.T) {
 }
 
 // Negative: seek out of bounds (positive and negative)
-func Test_File_Seek_OutOfBounds(t *testing.T) {
+func TestFileSeekOutOfBounds(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -287,7 +287,7 @@ func Test_File_Seek_OutOfBounds(t *testing.T) {
 }
 
 // Negative: invalid whence value
-func Test_File_Seek_InvalidWhence(t *testing.T) {
+func TestFileSeekInvalidWhence(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

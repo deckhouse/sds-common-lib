@@ -29,7 +29,7 @@ import (
 // ================================
 
 // Positive: chdir to a directory
-func Test_Chdir(t *testing.T) {
+func TestChdir(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -52,7 +52,7 @@ func Test_Chdir(t *testing.T) {
 }
 
 // Nagative: file not found
-func Test_Chdir_non_existent(t *testing.T) {
+func TestChdirNonExistent(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -63,7 +63,7 @@ func Test_Chdir_non_existent(t *testing.T) {
 // Negative: not a directory
 
 // Positive: change working directory and getwd should return the correct path
-func Test_Getwd(t *testing.T) {
+func TestGetwd(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

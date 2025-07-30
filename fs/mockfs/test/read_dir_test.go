@@ -29,7 +29,7 @@ import (
 // ================================
 
 // Positive: list content of a directory
-func Test_ReadDir_basic(t *testing.T) {
+func TestReadDirBasic(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -54,7 +54,7 @@ func Test_ReadDir_basic(t *testing.T) {
 }
 
 // Negative: file not found
-func Test_ReadDir_file_not_found(t *testing.T) {
+func TestReadDirFileNotFound(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
@@ -63,7 +63,7 @@ func Test_ReadDir_file_not_found(t *testing.T) {
 }
 
 // Negative: not a directory
-func Test_ReadDir_not_a_directory(t *testing.T) {
+func TestReadDirNotADirectory(t *testing.T) {
 	fsys, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 

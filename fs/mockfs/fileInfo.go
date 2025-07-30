@@ -26,7 +26,7 @@ type fileInfo struct {
 	f *File
 }
 
-func createFileInfo(f *File) fs.FileInfo {
+func newFileInfo(f *File) fs.FileInfo {
 	return fileInfo{f: f}
 }
 
