@@ -117,6 +117,7 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 func (h *Handler) Config() Config {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.ensureReloaded()
 	return h.cfg
 }
 

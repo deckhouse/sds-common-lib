@@ -258,7 +258,7 @@ func TestHandlerConfigMarshaling(t *testing.T) {
 	data := someCfg.MarshalData()
 
 	// repeating a few times won't harm
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if err := h.UpdateConfigData(data); err != nil {
 			t.Fatal(err)
 		}
@@ -402,7 +402,7 @@ func TestFileWatcher(t *testing.T) {
 	subscriptionLostTimeout := timeoutMultiplier
 	tctx, tctxCancel = context.WithTimeout(ctx, subscriptionLostTimeout)
 	t.Cleanup(tctxCancel)
-	if found := ownLogMock.WaitForString(tctx, "subscription lost: reloading watcher"); !found {
+	if found := ownLogMock.WaitForString(tctx, "no such file or directory"); !found {
 		t.Fatalf("expected watcher to report lost subscription in %s, but it didn't", subscriptionLostTimeout.String())
 	}
 
