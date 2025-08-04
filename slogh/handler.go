@@ -20,6 +20,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"unsafe"
@@ -27,19 +28,28 @@ import (
 
 var _ slog.Handler = &Handler{}
 
-// This is reloadable config, shared across all [Handler] structs.
-// Reloading can be started with [EnableConfigReload].
-var DefaultConfig = &Config{}
-
-// Opinionated Deckhouse-specific [slog.Handler].
-type Handler struct {
+type handlerState struct {
 	cfg Config
 	w   slog.Handler
-	// protects the entire state of [Handler], should be taken on each call
-	mu *sync.Mutex
 	// functions, which should be applied on a next w (reloaded), in order to
 	// mimic the behaviour of an old, wrapped w.
 	wrappers []func(slog.Handler) slog.Handler
+}
+
+func (hs *handlerState) clone() handlerState {
+	return handlerState{
+		cfg:      hs.cfg,
+		w:        hs.w,
+		wrappers: slices.Clone(hs.wrappers),
+	}
+}
+
+// Opinionated Deckhouse-specific [slog.Handler].
+type Handler struct {
+	// protects [Handler.state]
+	mu *sync.RWMutex
+
+	state handlerState
 }
 
 // Initializes new handler with opts.
@@ -47,26 +57,25 @@ type Handler struct {
 // Note: config will change if reload is enabled (see [EnableConfigReload])
 // Use [Config.NoReload] to forcibly prevent any reload.
 func NewHandler(initialCfg Config) *Handler {
-	h := &Handler{mu: &sync.Mutex{}}
-	h.init(initialCfg)
+	h := &Handler{mu: &sync.RWMutex{}}
+	h.initState(initialCfg)
 	return h
 }
 
 // Enabled implements slog.Handler.
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
-	h.ensureReloaded()
-	return h.w.Enabled(ctx, level)
+	return h.readState(true).w.Enabled(ctx, level)
 }
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	h.ensureReloaded()
+	state := h.readState(true)
 
-	if h.cfg.Render == RenderEnabled {
-		h.renderRecord(&r)
+	if state.cfg.Render == RenderEnabled {
+		renderRecord(&r)
 	}
 
-	return h.w.Handle(ctx, r)
+	return state.w.Handle(ctx, r)
 }
 
 // WithAttrs implements slog.Handler.
@@ -75,11 +84,15 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		return w.WithAttrs(attrs)
 	}
 
+	state := h.readState(false)
+
 	return &Handler{
-		cfg:      h.cfg,
-		mu:       &sync.Mutex{},
-		w:        wrapper(h.w),
-		wrappers: append(h.wrappers, wrapper),
+		mu: &sync.RWMutex{},
+		state: handlerState{
+			cfg:      state.cfg,
+			w:        wrapper(state.w),
+			wrappers: append(state.wrappers, wrapper),
+		},
 	}
 }
 
@@ -93,26 +106,26 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 		return w.WithGroup(name)
 	}
 
+	state := h.readState(false)
+
 	return &Handler{
-		cfg:      h.cfg,
-		mu:       &sync.Mutex{},
-		w:        wrapper(h.w),
-		wrappers: append(h.wrappers, wrapper),
+		mu: &sync.RWMutex{},
+		state: handlerState{
+			cfg:      state.cfg,
+			w:        wrapper(state.w),
+			wrappers: append(state.wrappers, wrapper),
+		},
 	}
 }
 
 // Gets current config.
 func (h *Handler) Config() Config {
-	h.ensureReloaded()
-	return h.cfg
+	return h.readState(true).cfg
 }
 
 // Sets current config. Useful to stop reloading by passing [Config.NoReload].
 func (h *Handler) UpdateConfig(cfg Config) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.init(cfg)
+	h.initState(cfg)
 }
 
 // Deprecated: there's no good reason to use this method.
@@ -120,20 +133,34 @@ func (h *Handler) UpdateConfig(cfg Config) {
 // is to use [EnableConfigReload] or just call [Config.UpdateConfigData] on
 // [DefaultConfig].
 func (h *Handler) UpdateConfigData(data map[string]string) error {
-	return DefaultConfig.UpdateConfigData(data)
+	return UpdateDefaultConfig(data)
 }
 
-func (h *Handler) init(cfg Config) {
+func (h *Handler) readState(ensureReloaded bool) handlerState {
+	if ensureReloaded {
+		h.ensureReloaded()
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.state.clone()
+}
+
+func (h *Handler) initState(cfg Config) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if cfg.logDst == nil {
-		if h.cfg.logDst == nil {
+		if h.state.cfg.logDst == nil {
 			cfg.logDst = os.Stderr
 		} else {
 			// keep old logDst, if set
-			cfg.logDst = h.cfg.logDst
+			cfg.logDst = h.state.cfg.logDst
 		}
 	}
 
-	h.cfg = cfg
+	h.state.cfg = cfg
 
 	opts := &slog.HandlerOptions{
 		Level:     slog.Level(cfg.Level),
@@ -163,33 +190,32 @@ func (h *Handler) init(cfg Config) {
 	}
 
 	if cfg.Format == FormatText {
-		h.w = slog.NewTextHandler(cfg.logDst, opts)
+		h.state.w = slog.NewTextHandler(cfg.logDst, opts)
 	} else {
-		h.w = slog.NewJSONHandler(cfg.logDst, opts)
+		h.state.w = slog.NewJSONHandler(cfg.logDst, opts)
 	}
 
 	// see h.wrappers
-	for _, wrapper := range h.wrappers {
-		h.w = wrapper(h.w)
+	for _, wrapper := range h.state.wrappers {
+		h.state.w = wrapper(h.state.w)
 	}
 }
 
 func (h *Handler) ensureReloaded() {
-	if h.cfg.version >= DefaultConfig.version {
+	if h.state.cfg.version >= DefaultConfigVersion() {
 		return
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	cfg := DefaultConfig()
 
-	if h.cfg.version >= DefaultConfig.version {
+	if h.state.cfg.version >= cfg.version {
 		return
 	}
 
-	h.init(*DefaultConfig)
+	h.initState(*cfg)
 }
 
-func (h *Handler) renderRecord(r *slog.Record) {
+func renderRecord(r *slog.Record) {
 	var entered bool
 	var start int
 	var msgb *strings.Builder

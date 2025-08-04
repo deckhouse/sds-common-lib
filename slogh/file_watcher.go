@@ -58,7 +58,7 @@ type UpdateConfigDataFunc func(data map[string]string) error
 
 // Calls [RunConfigFileWatcher] in order to reload global [DefaultConfig]
 func EnableConfigReload(ctx context.Context, opts *ConfigFileWatcherOptions) {
-	RunConfigFileWatcher(ctx, DefaultConfig.UpdateConfigData, opts)
+	RunConfigFileWatcher(ctx, UpdateDefaultConfig, opts)
 }
 
 // TODO sac reload latency to avoid duplicate reload (after test in k8s)
