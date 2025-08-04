@@ -23,6 +23,7 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"syscall"
 	"time"
 )
 
@@ -40,6 +41,7 @@ type File struct {
 	Path       string           // full path of the file
 	Size       int64            // length in bytes for regular files; system-dependent for others
 	Mode       os.FileMode      // file mode bits
+	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
 	ModTime    time.Time        // modification time
 	LinkSource string           // symlink source (path to the file)
 	Parent     *File            // parent directory

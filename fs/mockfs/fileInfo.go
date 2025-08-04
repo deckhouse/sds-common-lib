@@ -35,4 +35,4 @@ func (fi fileInfo) Size() int64        { return fi.f.Size }
 func (fi fileInfo) Mode() fs.FileMode  { return fi.f.Mode }
 func (fi fileInfo) ModTime() time.Time { return fi.f.ModTime }
 func (fi fileInfo) IsDir() bool        { return fi.f.Mode.IsDir() }
-func (fi fileInfo) Sys() interface{}   { return nil }
+func (fi fileInfo) Sys() interface{}   { return fi.f.Sys }

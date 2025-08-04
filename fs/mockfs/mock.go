@@ -23,13 +23,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
 // In-memory implementation of `fsapi.FsMock`
 type MockFs struct {
-	Root   File  // root directory
-	Curdir *File // current directory
+	Root       File           // root directory
+	Curdir     *File          // current directory
+	DefaultSys syscall.Stat_t // default linux-specific Stat for all new files
 }
 
 func NewFsMock() (*MockFs, error) {
@@ -79,6 +81,7 @@ func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
 		LinkSource: "",         // Configured later
 		Parent:     parent,
 		Children:   nil,
+		Content:    nil,
 	}
 
 	newFile.Children = map[string]*File{
@@ -202,6 +205,7 @@ func (m *MockFs) CreateFile(path string, mode os.FileMode) (*File, error) {
 	}
 
 	file, err := CreateFile(parent, dirName, mode)
+	file.Sys = &m.DefaultSys
 	return file, err
 }
 
