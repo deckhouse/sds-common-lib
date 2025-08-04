@@ -184,7 +184,7 @@ func splitPath(p string) (head string, tail string) {
 }
 
 // Creates a new entry by the given path
-func (m *MockFs) createFileByPath(path string, mode os.FileMode) (*File, error) {
+func (m *MockFs) CreateFile(path string, mode os.FileMode) (*File, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 

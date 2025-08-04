@@ -103,7 +103,7 @@ func (m *MockFs) Getwd() (string, error) {
 // =====================
 
 func (m *MockFs) Mkdir(name string, perm os.FileMode) error {
-	_, err := m.createFileByPath(name, os.ModeDir|perm)
+	_, err := m.CreateFile(name, os.ModeDir|perm)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
 // =====================
 
 func (m *MockFs) Create(name string) (fs.File, error) {
-	file, err := m.createFileByPath(name, 0)
+	file, err := m.CreateFile(name, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (m *MockFs) Create(name string) (fs.File, error) {
 // =====================
 
 func (m *MockFs) Symlink(oldname, newname string) error {
-	link, err := m.createFileByPath(newname, os.ModeSymlink)
+	link, err := m.CreateFile(newname, os.ModeSymlink)
 	if err != nil {
 		return err
 	}
