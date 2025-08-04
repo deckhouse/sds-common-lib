@@ -54,16 +54,12 @@ func NewHandler(initialCfg Config) *Handler {
 
 // Enabled implements slog.Handler.
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.ensureReloaded()
 	return h.w.Enabled(ctx, level)
 }
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.ensureReloaded()
 
 	if h.cfg.Render == RenderEnabled {
@@ -75,10 +71,6 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 // WithAttrs implements slog.Handler.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.ensureReloaded()
-
 	wrapper := func(w slog.Handler) slog.Handler {
 		return w.WithAttrs(attrs)
 	}
@@ -93,10 +85,6 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 // WithGroup implements slog.Handler.
 func (h *Handler) WithGroup(name string) slog.Handler {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.ensureReloaded()
-
 	if name == "" {
 		return h
 	}
@@ -115,8 +103,6 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 
 // Gets current config.
 func (h *Handler) Config() Config {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.ensureReloaded()
 	return h.cfg
 }
@@ -189,9 +175,18 @@ func (h *Handler) init(cfg Config) {
 }
 
 func (h *Handler) ensureReloaded() {
-	if h.cfg.version < DefaultConfig.version {
-		h.init(*DefaultConfig)
+	if h.cfg.version >= DefaultConfig.version {
+		return
 	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.cfg.version >= DefaultConfig.version {
+		return
+	}
+
+	h.init(*DefaultConfig)
 }
 
 func (h *Handler) renderRecord(r *slog.Record) {

@@ -51,6 +51,7 @@ func (cfg *Config) UpdateConfigData(data map[string]string) error {
 
 func (cfg *Config) NoReload() *Config {
 	res := *cfg
+	// set to the biggest possible value to prevent reloading config
 	res.version = ^uint(0)
 	return &res
 }
