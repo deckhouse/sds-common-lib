@@ -71,14 +71,15 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 // File descriptor ("opened file")
 type Fd struct {
 	file           *File
+	mockFs         *MockFs
 	isOpen         bool
 	seekOffset     int64 // File read/write position
 	readDirOffset  int
 	sortedChildren []*File // Cached dir entries for ReadDir
 }
 
-func newFd(file *File) *Fd {
-	return &Fd{file: file, isOpen: true, readDirOffset: 0}
+func newFd(file *File, mockFs *MockFs) *Fd {
+	return &Fd{file: file, mockFs: mockFs, isOpen: true, readDirOffset: 0}
 }
 
 // =====================
@@ -86,6 +87,9 @@ func newFd(file *File) *Fd {
 // =====================
 
 func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "readdir", f, n); err != nil {
+		return nil, err
+	}
 	dir := f.file
 
 	if !dir.Mode.IsDir() {
@@ -137,6 +141,9 @@ func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
 }
 
 func (f *Fd) Stat() (fs.FileInfo, error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "stat", f); err != nil {
+		return nil, err
+	}
 	if !f.isOpen {
 		return nil, fs.ErrClosed
 	}
@@ -145,6 +152,9 @@ func (f *Fd) Stat() (fs.FileInfo, error) {
 }
 
 func (f *Fd) Close() error {
+	if err := f.mockFs.shouldFail(f.mockFs, "close", f); err != nil {
+		return err
+	}
 	if !f.isOpen {
 		return fs.ErrClosed
 	}
@@ -158,6 +168,9 @@ func (f *Fd) Name() string {
 }
 
 func (f *Fd) Read(p []byte) (n int, err error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "read", f, p); err != nil {
+		return 0, err
+	}
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
@@ -176,6 +189,9 @@ func (f *Fd) Read(p []byte) (n int, err error) {
 }
 
 func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "readat", f, p, off); err != nil {
+		return 0, err
+	}
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
@@ -188,6 +204,9 @@ func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *Fd) Write(p []byte) (n int, err error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "write", f, p); err != nil {
+		return 0, err
+	}
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
@@ -206,6 +225,9 @@ func (f *Fd) Write(p []byte) (n int, err error) {
 }
 
 func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "writeat", f, p, off); err != nil {
+		return 0, err
+	}
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
@@ -218,6 +240,9 @@ func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *Fd) Seek(offset int64, whence int) (int64, error) {
+	if err := f.mockFs.shouldFail(f.mockFs, "seek", f, offset, whence); err != nil {
+		return 0, err
+	}
 	// Ensure the descriptor is open
 	if !f.isOpen {
 		return 0, fs.ErrClosed

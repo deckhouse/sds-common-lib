@@ -31,7 +31,19 @@ import (
 type MockFs struct {
 	Root       File           // root directory
 	Curdir     *File          // current directory
+	Failer     Failer         // failure-injection interface
 	DefaultSys syscall.Stat_t // default linux-specific Stat for all new files
+}
+
+// Failure-injection interface
+type Failer interface {
+	// Checks if the called operation should fail
+	// `mockFs` - the MockFs object
+	// Arguments helping to make a decision:
+	// `op`     - called operation
+	// `self`   - object which method is called (e.g. Fd). Can be nil (e.g. for methods of `Fs`)
+	// `args`   - the arguments of the operation
+	ShouldFail(mockFs *MockFs, op string, self any, args ...any) error
 }
 
 func NewFsMock() (*MockFs, error) {
@@ -207,6 +219,14 @@ func (m *MockFs) CreateFile(path string, mode os.FileMode) (*File, error) {
 	file, err := CreateFile(parent, dirName, mode)
 	file.Sys = &m.DefaultSys
 	return file, err
+}
+
+func (m *MockFs) shouldFail(mockFs *MockFs, op string, self any, args ...any) error {
+	if m.Failer == nil {
+		return nil
+	}
+
+	return m.Failer.ShouldFail(mockFs, op, self, args...)
 }
 
 // Converts error to `fs.PathError`

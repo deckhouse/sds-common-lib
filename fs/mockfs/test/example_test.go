@@ -106,3 +106,19 @@ func TestReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello, world!", res)
 }
+
+func TestFailureInjector(t *testing.T) {
+	fsys, err := mockfs.NewFsMock()
+	assert.NoError(t, err)
+
+	// Create a test file.
+	_, err = fsys.CreateFile("/file.txt", 0)
+	assert.NoError(t, err)
+
+	// Inject ProbabilityFailer with 100% failure probability.
+	fsys.Failer = mockfs.NewProbabilityFailer(0, 1.0)
+
+	// Attempt to open the file – should fail.
+	_, err = fsys.Open("/file.txt")
+	assert.Error(t, err, "operation should fail due to 100% probability")
+}

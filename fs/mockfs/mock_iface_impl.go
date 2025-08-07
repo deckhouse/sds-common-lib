@@ -31,12 +31,16 @@ import (
 // =====================
 
 func (m *MockFs) Open(name string) (fsext.File, error) {
+	if err := m.shouldFail(m, "open", nil, name); err != nil {
+		return nil, err
+	}
+
 	file, err := m.GetFile(name)
 	if err != nil {
 		return nil, toPathError(err, "open", name)
 	}
 
-	return newFd(file), nil
+	return newFd(file, m), nil
 }
 
 // =====================
@@ -44,6 +48,9 @@ func (m *MockFs) Open(name string) (fsext.File, error) {
 // =====================
 
 func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
+	if err := m.shouldFail(m, "stat", nil, name); err != nil {
+		return nil, err
+	}
 	f, err := m.GetFile(name)
 	if err != nil {
 		return nil, toPathError(err, "stat", name)
@@ -53,6 +60,9 @@ func (m *MockFs) Stat(name string) (fs.FileInfo, error) {
 }
 
 func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
+	if err := m.shouldFail(m, "lstat", nil, name); err != nil {
+		return nil, err
+	}
 	file, err := m.getFileRelativeEx(m.Curdir, name, false)
 	if err != nil {
 		return nil, toPathError(err, "lstat", name)
@@ -66,6 +76,9 @@ func (m *MockFs) Lstat(name string) (fs.FileInfo, error) {
 // =====================
 
 func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
+	if err := m.shouldFail(m, "readdir", nil, name); err != nil {
+		return nil, err
+	}
 	file, err := m.GetFile(name)
 	if err != nil {
 		return nil, toPathError(err, "readdir", name)
@@ -79,6 +92,9 @@ func (m *MockFs) ReadDir(name string) ([]fs.DirEntry, error) {
 // =====================
 
 func (m *MockFs) Chdir(dir string) error {
+	if err := m.shouldFail(m, "chdir", nil, dir); err != nil {
+		return err
+	}
 	f, err := m.GetFile(dir)
 	if err != nil {
 		return toPathError(err, "chdir", dir)
@@ -91,6 +107,9 @@ func (m *MockFs) Chdir(dir string) error {
 }
 
 func (m *MockFs) Getwd() (string, error) {
+	if err := m.shouldFail(m, "getwd", nil); err != nil {
+		return "", err
+	}
 	if m.Curdir == nil {
 		// Mock invariant violation
 		panic("current directory is not set")
@@ -103,6 +122,9 @@ func (m *MockFs) Getwd() (string, error) {
 // =====================
 
 func (m *MockFs) Mkdir(name string, perm os.FileMode) error {
+	if err := m.shouldFail(m, "mkdir", nil, name, perm); err != nil {
+		return err
+	}
 	_, err := m.CreateFile(name, os.ModeDir|perm)
 	if err != nil {
 		return err
@@ -112,6 +134,9 @@ func (m *MockFs) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
+	if err := m.shouldFail(m, "mkdirall", nil, path, perm); err != nil {
+		return err
+	}
 	curdir, p, err := m.MakeRelativePath(m.Curdir, path)
 	if err != nil {
 		return err
@@ -141,12 +166,15 @@ func (m *MockFs) MkdirAll(path string, perm os.FileMode) error {
 // =====================
 
 func (m *MockFs) Create(name string) (fs.File, error) {
+	if err := m.shouldFail(m, "create", nil, name); err != nil {
+		return nil, err
+	}
 	file, err := m.CreateFile(name, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	return newFd(file), nil
+	return newFd(file, m), nil
 }
 
 // =====================
@@ -154,6 +182,9 @@ func (m *MockFs) Create(name string) (fs.File, error) {
 // =====================
 
 func (m *MockFs) Symlink(oldname, newname string) error {
+	if err := m.shouldFail(m, "symlink", nil, oldname, newname); err != nil {
+		return err
+	}
 	link, err := m.CreateFile(newname, os.ModeSymlink)
 	if err != nil {
 		return err
@@ -164,6 +195,9 @@ func (m *MockFs) Symlink(oldname, newname string) error {
 }
 
 func (m *MockFs) ReadLink(name string) (string, error) {
+	if err := m.shouldFail(m, "readlink", nil, name); err != nil {
+		return "", err
+	}
 	file, err := m.getFileRelativeEx(m.Curdir, name, false)
 	if err != nil {
 		return "", err
