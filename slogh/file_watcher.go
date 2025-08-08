@@ -56,18 +56,16 @@ type ConfigFileWatcherOptions struct {
 
 type UpdateConfigDataFunc func(data map[string]string) error
 
-// Calls [RunConfigFileWatcher] in order to reload global [DefaultConfig]
-func EnableConfigReload(ctx context.Context, opts *ConfigFileWatcherOptions) {
-	RunConfigFileWatcher(ctx, UpdateDefaultConfig, opts)
-}
-
-// TODO sac reload latency to avoid duplicate reload (after test in k8s)
-
 // Starts a goroutine, which will monitor and periodically reload the config.
 // Call blocks until first attempt to reload will get the result.
 // It's panic-free and error-free, all errors will be reported to [ConfigFileWatcherOptions.OwnLogger]
 // Cancelation of the context will lead to graceful shutdown of the goroutine.
-func RunConfigFileWatcher(
+func EnableConfigReload(ctx context.Context, opts *ConfigFileWatcherOptions) {
+	runConfigFileWatcher(ctx, UpdateConfigData, opts)
+}
+
+// TODO sac reload latency to avoid duplicate reload (after test in k8s)
+func runConfigFileWatcher(
 	ctx context.Context,
 	update UpdateConfigDataFunc,
 	opts *ConfigFileWatcherOptions,
