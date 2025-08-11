@@ -16,7 +16,7 @@ limitations under the License.
 
 // This example shows how to use MockFS to test file system operations
 
-package mockfs
+package mockfs_test
 
 import (
 	"os"
