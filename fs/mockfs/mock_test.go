@@ -27,14 +27,12 @@ import (
 )
 
 // Interface validation (check if compiles)
-func requiresFsInterface() fs.File {
+func RequiresFsInterface() {
 	var fsys fsext.Fs = &mockfs.MockFs{}
 	var file1 fsext.File
 	file1, _ = fsys.Open("foo")
-	return file1
+	var _ fs.File = file1
 }
-
-var _ fs.File = requiresFsInterface()
 
 // ================================
 // Tests for `makeRelativePath`
