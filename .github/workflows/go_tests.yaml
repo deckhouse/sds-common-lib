@@ -28,6 +28,8 @@ jobs:
       - name: Run Go tests
         shell: bash
         run: |
+          pwd
+          ls -la
           basedir=$(pwd)
           failed='false'
           # for i in $(find . -type f -name '*_test.go');do
