@@ -37,7 +37,7 @@ jobs:
         run: |
           basedir=$(pwd)
           failed='false'
-          for i in $(find / -type f -name go.mod);do
+          for i in $(find . -type f -name go.mod);do
             dir=$(echo $i | sed 's/go.mod$//')
             cd $basedir/$dir
             # check all editions

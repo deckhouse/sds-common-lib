@@ -33,7 +33,7 @@ jobs:
         run: |
           basedir=$(pwd)
           failed='false'
-          for i in $(find / -type f -name '*_test.go');do
+          for i in $(find . -type f -name '*_test.go');do
             dir=$(echo $i | sed 's/[a-z_A-Z0-9-]*_test.go$//')
             cd $basedir/$dir
             # check all editions

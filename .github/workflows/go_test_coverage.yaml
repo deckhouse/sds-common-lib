@@ -31,7 +31,7 @@ jobs:
       - name: Run Go test coverage count
         shell: bash
         run: |
-          find / -type f -name "go.mod" | while read -r gomod; do
+          find . -type f -name "go.mod" | while read -r gomod; do
               dir=$(dirname "$gomod")
 
               echo "Test coverage in $dir"
