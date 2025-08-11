@@ -28,7 +28,7 @@ import (
 )
 
 // Example function to test
-func ReadsFile(fs fsext.Fs) (string, error) {
+func ReadsFile(fs fsext.FS) (string, error) {
 	file, err := fs.Open("/foo/bar")
 	if err != nil {
 		return "", err
@@ -50,7 +50,7 @@ func ReadsFile(fs fsext.Fs) (string, error) {
 }
 
 // Example function to test
-func WritesFile(fs fsext.Fs, text string) error {
+func WritesFile(fs fsext.FS, text string) error {
 	file, err := fs.Open("/foo/bar")
 	if err != nil {
 		return err

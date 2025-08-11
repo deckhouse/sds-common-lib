@@ -37,7 +37,7 @@ func NewProbabilityFailer(seed int64, prob float64) *ProbabilityFailer {
 	}
 }
 
-func (pf *ProbabilityFailer) ShouldFail(_ *MockFs, op string, _ any, _ ...any) error {
+func (pf *ProbabilityFailer) ShouldFail(_ *MockFS, op string, _ any, _ ...any) error {
 	if pf.probability <= 0 {
 		return nil
 	}

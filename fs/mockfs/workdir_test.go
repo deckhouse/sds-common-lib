@@ -42,7 +42,7 @@ func TestChdir(t *testing.T) {
 	err = fsys.Chdir("/a")
 	assert.NoError(t, err)
 
-	assert.Equal(t, fsys.Curdir, dirA)
+	assert.Equal(t, fsys.CurDir, dirA)
 
 	// Negative: chdir to non-dir
 	_, err = mockfs.CreateFile(&fsys.Root, "file.txt", 0)

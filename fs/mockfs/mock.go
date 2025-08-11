@@ -28,12 +28,14 @@ import (
 )
 
 // In-memory implementation of `fsapi.FsMock`
-type MockFs struct {
-	Root       File           // root directory
-	Curdir     *File          // current directory
+type MockFS struct {
+	Root       MockFile       // root directory
+	CurDir     *MockFile      // current directory
 	Failer     Failer         // failure-injection interface
 	DefaultSys syscall.Stat_t // default linux-specific Stat for all new files
 }
+
+type MockFSBack MockFS
 
 // Failure-injection interface
 type Failer interface {
@@ -43,22 +45,27 @@ type Failer interface {
 	// `op`     - called operation
 	// `self`   - object which method is called (e.g. Fd). Can be nil (e.g. for methods of `Fs`)
 	// `args`   - the arguments of the operation
-	ShouldFail(mockFs *MockFs, op string, self any, args ...any) error
+	ShouldFail(mockFs *MockFS, op string, self any, args ...any) error
 }
 
-func NewFsMock() (*MockFs, error) {
+func NewFsMock() (*MockFS, error) {
 
 	root, err := CreateFile(nil, "/", os.ModeDir)
 	if err != nil {
 		return nil, err
 	}
 
-	fs := MockFs{
+	fs := MockFS{
 		Root: *root,
 	}
-	fs.Curdir = &fs.Root
+	fs.CurDir = &fs.Root
 
 	return &fs, err
+}
+
+// TODO: to delete
+func CreateFile(parent *MockFile, name string, mode os.FileMode) (*MockFile, error) {
+	return parent.CreateFile(name, mode)
 }
 
 // Creates a new entry in the given directory
@@ -66,7 +73,7 @@ func NewFsMock() (*MockFs, error) {
 // `name` name of the new entry
 // `mode` mode of the new entry (0 for regular file, os.ModDir, os.ModeSymlink)
 // Returns the new entry and an error if any
-func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
+func (parent *MockFile) CreateFile(name string, mode os.FileMode) (*MockFile, error) {
 	var path string
 
 	if name == "" {
@@ -85,7 +92,7 @@ func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
 		return nil, errors.New("file name can't contain '/'")
 	}
 
-	newFile := &File{
+	newFile := &MockFile{
 		Name:       name,
 		Size:       0,          // Configured later
 		Mode:       mode,       // NOTE: file permissions are currently not used by MockFs
@@ -96,7 +103,7 @@ func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
 		Content:    nil,
 	}
 
-	newFile.Children = map[string]*File{
+	newFile.Children = map[string]*MockFile{
 		// NOTE: probably, it should be a special case
 		".":  newFile,
 		"..": parent,
@@ -114,28 +121,23 @@ func CreateFile(parent *File, name string, mode os.FileMode) (*File, error) {
 }
 
 // Returns the File object by the given relative or absolute path
-func (m *MockFs) GetFile(p string) (*File, error) {
-	return m.getFileRelative(m.Curdir, p)
+// Flowing symlinks
+func (m *MockFS) GetFile(p string) (*MockFile, error) {
+	return m.getFileRelative(m.CurDir, p, true)
 }
 
-func (m *MockFs) MakeRelativePath(curdir *File, p string) (*File, string, error) {
+func (m *MockFS) MakeRelativePath(curDir *MockFile, p string) (*MockFile, string, error) {
 	if filepath.IsAbs(p) {
 		var err error
-		curdir = &m.Root
-		p, err = filepath.Rel(curdir.Path, p)
+		curDir = &m.Root
+		p, err = filepath.Rel(curDir.Path, p)
 		if err != nil {
 			return nil, "", err
 		}
 	}
 
 	p = filepath.Clean(p)
-	return curdir, p, nil
-}
-
-// Returns the File object by given path
-// Follows symlinks
-func (m *MockFs) getFileRelative(curdir *File, p string) (*File, error) {
-	return m.getFileRelativeEx(curdir, p, true)
+	return curDir, p, nil
 }
 
 // Returns the File object by given path
@@ -147,21 +149,21 @@ func (m *MockFs) getFileRelative(curdir *File, p string) (*File, error) {
 // └── file2
 // followLink = true:  /dir1/file1 -> /file2 (regular file)
 // followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
-func (m *MockFs) getFileRelativeEx(curdir *File, p string, followLink bool) (*File, error) {
-	curdir, p, err := m.MakeRelativePath(curdir, p)
+func (m *MockFS) getFileRelative(baseDir *MockFile, relativePath string, followLink bool) (*MockFile, error) {
+	baseDir, relativePath, err := m.MakeRelativePath(baseDir, relativePath)
 	if err != nil {
 		return nil, err
 	}
 
-	return m.getFileRelativeImpl(curdir, p, followLink)
+	return m.getFileRelativeImpl(baseDir, relativePath, followLink)
 }
 
-func (m *MockFs) getFileRelativeImpl(curdir *File, p string, followLink bool) (*File, error) {
-	// p is normalized relative path from curdir, no extra checks are needed
+func (m *MockFS) getFileRelativeImpl(baseDir *MockFile, relativePath string, followLink bool) (*MockFile, error) {
+	// p is normalized relative path from curDir, no extra checks are needed
 
-	head, tail := splitPath(p)
+	head, tail := splitPath(relativePath)
 
-	child, ok := curdir.Children[head]
+	child, ok := baseDir.Children[head]
 	if !ok || child == nil {
 		return nil, fmt.Errorf("file not found: %s", head)
 	}
@@ -170,7 +172,7 @@ func (m *MockFs) getFileRelativeImpl(curdir *File, p string, followLink bool) (*
 		// This is the last segment of the path (file itself)
 		if followLink && child.Mode&os.ModeSymlink != 0 {
 			// follow last symlink
-			return m.getFileRelative(child.Parent, child.LinkSource)
+			return m.getFileRelative(child.Parent, child.LinkSource, true)
 		}
 
 		return child, nil
@@ -179,7 +181,7 @@ func (m *MockFs) getFileRelativeImpl(curdir *File, p string, followLink bool) (*
 	if child.Mode&os.ModeSymlink != 0 {
 		// child.parent is not nil, because symlink can't be root
 		var err error
-		child, err = m.getFileRelative(child.Parent, child.LinkSource)
+		child, err = m.getFileRelative(child.Parent, child.LinkSource, true)
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +201,7 @@ func splitPath(p string) (head string, tail string) {
 }
 
 // Creates a new entry by the given path
-func (m *MockFs) CreateFile(path string, mode os.FileMode) (*File, error) {
+func (m *MockFS) CreateFile(path string, mode os.FileMode) (*MockFile, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 
@@ -221,7 +223,7 @@ func (m *MockFs) CreateFile(path string, mode os.FileMode) (*File, error) {
 	return file, err
 }
 
-func (m *MockFs) shouldFail(mockFs *MockFs, op string, self any, args ...any) error {
+func (m *MockFS) shouldFail(mockFs *MockFS, op string, self any, args ...any) error {
 	if m.Failer == nil {
 		return nil
 	}

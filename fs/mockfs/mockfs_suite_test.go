@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs
+package mockfs_test
 
-import "io/fs"
+import (
+	"testing"
 
-// dirEntry implements fs.DirEntry backed by File
-type dirEntry struct {
-	f *MockFile
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+func TestMockFs(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Mockfs Suite")
 }
-
-func (de dirEntry) Name() string               { return de.f.Name }
-func (de dirEntry) IsDir() bool                { return de.f.Mode.IsDir() }
-func (de dirEntry) Type() fs.FileMode          { return de.f.Mode.Type() }
-func (de dirEntry) Info() (fs.FileInfo, error) { return de.f.stat() }

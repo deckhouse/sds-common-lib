@@ -31,29 +31,29 @@ import (
 // It allows flexible fake file content generation including on the fly
 // generation
 type FileContent interface {
-	ReadAt(file *File, p []byte, off int64) (n int, err error)
-	WriteAt(file *File, p []byte, off int64) (n int, err error)
+	ReadAt(file *MockFile, p []byte, off int64) (n int, err error)
+	WriteAt(file *MockFile, p []byte, off int64) (n int, err error)
 }
 
-// Fake File system entry
-type File struct {
-	Name       string           // base name of the file
-	Path       string           // full path of the file
-	Size       int64            // length in bytes for regular files; system-dependent for others
-	Mode       os.FileMode      // file mode bits
-	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
-	ModTime    time.Time        // modification time
-	LinkSource string           // symlink source (path to the file)
-	Parent     *File            // parent directory
-	Children   map[string]*File // children of the file (if the file is a directory)
-	Content    FileContent      // File read/write interface
+// Fake MockFile system entry
+type MockFile struct {
+	Name       string               // base name of the file
+	Path       string               // full path of the file
+	Size       int64                // length in bytes for regular files; system-dependent for others
+	Mode       os.FileMode          // file mode bits
+	Sys        *syscall.Stat_t      // linux-specific Stat. Primary used for GID and UID
+	ModTime    time.Time            // modification time
+	LinkSource string               // symlink source (path to the file)
+	Parent     *MockFile            // parent directory
+	Children   map[string]*MockFile // children of the file (if the file is a directory)
+	Content    FileContent          // File read/write interface
 }
 
-func (f *File) stat() (fs.FileInfo, error) {
-	return newFileInfo(f), nil
+func (f *MockFile) stat() (fs.FileInfo, error) {
+	return newMockFileInfo(f), nil
 }
 
-func (dir *File) readDir() ([]fs.DirEntry, error) {
+func (dir *MockFile) readDir() ([]fs.DirEntry, error) {
 	if !dir.Mode.IsDir() {
 		return nil, fmt.Errorf("not a directory: %s", dir.Name)
 	}
@@ -69,24 +69,24 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 }
 
 // File descriptor ("opened file")
-type Fd struct {
-	file           *File
-	mockFs         *MockFs
+type FileDescriptor struct {
+	file           *MockFile
+	mockFs         *MockFS
 	isOpen         bool
 	seekOffset     int64 // File read/write position
 	readDirOffset  int
-	sortedChildren []*File // Cached dir entries for ReadDir
+	sortedChildren []*MockFile // Cached dir entries for ReadDir
 }
 
-func newFd(file *File, mockFs *MockFs) *Fd {
-	return &Fd{file: file, mockFs: mockFs, isOpen: true, readDirOffset: 0}
+func newFd(file *MockFile, mockFs *MockFS) *FileDescriptor {
+	return &FileDescriptor{file: file, mockFs: mockFs, isOpen: true, readDirOffset: 0}
 }
 
 // =====================
 // `fsext.File` interface implementation for `Fd`
 // =====================
 
-func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
+func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "readdir", f, n); err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
 	}
 
 	if f.readDirOffset == 0 {
-		f.sortedChildren = sortDir(dir.Children, func(a, b *File) bool {
+		f.sortedChildren = sortDir(dir.Children, func(a, b *MockFile) bool {
 			return a.Name < b.Name
 		})
 	}
@@ -125,8 +125,8 @@ func (f *Fd) ReadDir(n int) ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
-	slice := make([]*File, 0, len(dict)-2)
+func sortDir(dict map[string]*MockFile, comp func(a, b *MockFile) bool) []*MockFile {
+	slice := make([]*MockFile, 0, len(dict)-2)
 	for file := range dict {
 		if file != "." && file != ".." {
 			slice = append(slice, dict[file])
@@ -140,7 +140,7 @@ func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
 	return slice
 }
 
-func (f *Fd) Stat() (fs.FileInfo, error) {
+func (f *FileDescriptor) Stat() (fs.FileInfo, error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "stat", f); err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (f *Fd) Stat() (fs.FileInfo, error) {
 	return f.file.stat()
 }
 
-func (f *Fd) Close() error {
+func (f *FileDescriptor) Close() error {
 	if err := f.mockFs.shouldFail(f.mockFs, "close", f); err != nil {
 		return err
 	}
@@ -163,11 +163,11 @@ func (f *Fd) Close() error {
 	return nil
 }
 
-func (f *Fd) Name() string {
+func (f *FileDescriptor) Name() string {
 	return f.file.Name
 }
 
-func (f *Fd) Read(p []byte) (n int, err error) {
+func (f *FileDescriptor) Read(p []byte) (n int, err error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "read", f, p); err != nil {
 		return 0, err
 	}
@@ -188,7 +188,7 @@ func (f *Fd) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
+func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "readat", f, p, off); err != nil {
 		return 0, err
 	}
@@ -203,7 +203,7 @@ func (f *Fd) ReadAt(p []byte, off int64) (n int, err error) {
 	return f.file.Content.ReadAt(f.file, p, off)
 }
 
-func (f *Fd) Write(p []byte) (n int, err error) {
+func (f *FileDescriptor) Write(p []byte) (n int, err error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "write", f, p); err != nil {
 		return 0, err
 	}
@@ -224,7 +224,7 @@ func (f *Fd) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
+func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "writeat", f, p, off); err != nil {
 		return 0, err
 	}
@@ -239,7 +239,7 @@ func (f *Fd) WriteAt(p []byte, off int64) (n int, err error) {
 	return f.file.Content.WriteAt(f.file, p, off)
 }
 
-func (f *Fd) Seek(offset int64, whence int) (int64, error) {
+func (f *FileDescriptor) Seek(offset int64, whence int) (int64, error) {
 	if err := f.mockFs.shouldFail(f.mockFs, "seek", f, offset, whence); err != nil {
 		return 0, err
 	}

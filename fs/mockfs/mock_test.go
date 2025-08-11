@@ -28,7 +28,7 @@ import (
 
 // Interface validation (check if compiles)
 func RequiresFsInterface() {
-	var fsys fsext.Fs = &mockfs.MockFs{}
+	var fsys fsext.FS = &mockfs.MockFS{}
 	var file1 fsext.File
 	file1, _ = fsys.Open("foo")
 	var _ fs.File = file1
@@ -43,7 +43,7 @@ func TestMakeRelativePathAbsolutePath(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "/a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -55,7 +55,7 @@ func TestMakeRelativePathAbsoluteNotNormalizedPath(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/../b/c/")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "/a/../b/c/")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -67,7 +67,7 @@ func TestMakeRelativePathRelativePathWithRootCwd(t *testing.T) {
 	fs, err := mockfs.NewFsMock()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
@@ -81,9 +81,9 @@ func TestMakeRelativePathAbsolutePathWithDifferentCwd(t *testing.T) {
 
 	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "/a/b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "/a/b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, &fs.Root, curdir, "Invalid curdir")
 	assert.Equal(t, "a/b/c", p, "Invalid path")
@@ -96,9 +96,9 @@ func TestMakeRelativePathRelativePathWithDifferentCwd(t *testing.T) {
 
 	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "b/c", p, "Invalid path")
@@ -111,9 +111,9 @@ func TestMakeRelativePathRelativePathWithDifferentCwdAndUp(t *testing.T) {
 
 	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "../b/c")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "../b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "../b/c", p, "Invalid path")
@@ -126,9 +126,9 @@ func TestMakeRelativePathRelativeNotNormalizedWithDifferentCwd(t *testing.T) {
 
 	dirA, err := mockfs.CreateFile(&fs.Root, "a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 
-	curdir, p, err := fs.MakeRelativePath(fs.Curdir, "b/../c/d/")
+	curdir, p, err := fs.MakeRelativePath(fs.CurDir, "b/../c/d/")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "c/d", p, "Invalid path")
@@ -254,7 +254,7 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 	fileC, err := mockfs.CreateFile(dirB, "file.txt", 0)
 	assert.NoError(t, err)
 
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 	got, err := fs.GetFile("b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
@@ -279,7 +279,7 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Current directory set to /a
-	fs.Curdir = dirA
+	fs.CurDir = dirA
 
 	got, err := fs.GetFile("../b/foo")
 	assert.NoError(t, err)

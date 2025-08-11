@@ -17,79 +17,135 @@ limitations under the License.
 package mockfs_test
 
 import (
-	"testing"
+	"fmt"
+	"io/fs"
+	"path/filepath"
 
 	"github.com/deckhouse/sds-common-lib/fs/mockfs"
-	"github.com/stretchr/testify/assert"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-// ================================
-// Tests for `Create`
-// ================================
+var fsys *mockfs.MockFS
 
-func TestCreate(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
-	assert.NoError(t, err)
+var _ = Describe("Mockfs", func() {
+	var err error
+	JustBeforeEach(func() {
+		fsys, err = mockfs.NewFsMock()
+		Expect(err).NotTo(HaveOccurred())
+	})
 
-	// /
-	// └── dir
-	//     └── file.txt
+	const dirName = "dir"
 
-	err = fsys.Mkdir("dir", 0o755)
-	assert.NoError(t, err)
+	whenDirSuccessfullyCreated(dirName, func() {
+		whenCallingMkdir(dirName, func(err *error) {
+			It("fails to create existing directory", func() {
+				Expect(*err).To(HaveOccurred())
+			})
+		})
 
-	fptr, err := fsys.Create("dir/file.txt")
-	assert.NoError(t, err)
-	assert.NotNil(t, fptr, "Create should return non-nil pointer")
+		whenCallingFileCreate(dirName, func(_ *fs.File, err *error) {
+			It("fails to create file with existing directory name", func() {
+				Expect(*err).To(HaveOccurred())
+			})
+		})
 
-	fileObj, err := fsys.GetFile("dir/file.txt")
-	assert.NoError(t, err)
-	assert.False(t, fileObj.Mode.IsDir(), "Created file should not be directory")
+		fileInDirPath := filepath.Join(dirName, "file.txt")
+
+		whenFileSuccessfullyCreated(fileInDirPath, func(fptr *fs.File) {
+			whenCallingMkdir(fileInDirPath, func(err *error) {
+				It("fails to create directory with existing file name", func() {
+					Expect(*err).To(HaveOccurred())
+				})
+			})
+
+			whenCallingFileCreate(fileInDirPath, func(_ *fs.File, err *error) {
+				It("fails to create file with existing file name", func() {
+					Expect(*err).To(HaveOccurred())
+				})
+			})
+
+			It("get file should return correct file", func() {
+				By("checking is not directory")
+				fileObj, err := fsys.GetFile(fileInDirPath)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(fileObj).NotTo(BeNil())
+				Expect(fileObj.Mode.IsDir()).To(BeFalse(), "Created file should not be directory")
+				Expect(fileObj.Mode.IsRegular()).To(BeTrue())
+			})
+		})
+
+		itFailsToCreateFileInMissingDirectory()
+	})
+
+	itFailsToCreateFileInMissingDirectory()
+	whenFileSuccessfullyCreated("file.txt", func(_ *fs.File) {
+		It("failed to create file in file", func() {
+			_, err = fsys.Create("file.txt/child.txt")
+			Expect(err).To(HaveOccurred())
+		})
+
+		itFailsToCreateFileInMissingDirectory()
+	})
+})
+
+func itFailsToCreateFileInMissingDirectory() {
+	It("fails to create file in missing directory", func() {
+		_, err := fsys.Create("missing/file.txt")
+		Expect(err).To(HaveOccurred())
+	})
 }
 
-// Negative: file already exists
-func TestCreateFileAlreadyExists(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
-	assert.NoError(t, err)
+func whenCallingMkdir(dirName string, fn func(*error)) {
+	When(fmt.Sprintf("directory '%s' created", dirName), func() {
+		var err error
+		JustBeforeEach(func() {
+			err = fsys.Mkdir(dirName, 0o755)
+		})
 
-	// /
-	// └── dir
-	//     └── file.txt
-
-	err = fsys.Mkdir("dir", 0o755)
-	assert.NoError(t, err)
-
-	// First create succeeds.
-	_, err = fsys.Create("dir/file.txt")
-	assert.NoError(t, err)
-
-	// Second create should fail because the file already exists.
-	_, err = fsys.Create("dir/file.txt")
-	assert.Error(t, err)
+		fn(&err)
+	})
 }
 
-// Negative: directory not found
-func TestCreateDirectoryNotFound(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
-	assert.NoError(t, err)
+func whenDirSuccessfullyCreated(dirName string, fn func()) {
+	whenCallingMkdir(dirName, func(err *error) {
+		JustBeforeEach(func() {
+			Expect(*err).NotTo(HaveOccurred())
+		})
 
-	// Attempt to create a file inside non-existent directory "missing".
-	_, err = fsys.Create("missing/file.txt")
-	assert.Error(t, err)
+		It("succeed", func() {
+			// in case we don't have it in fn
+		})
+
+		fn()
+	})
 }
 
-// Negative: parent is not a directory
-func TestCreateParentNotDirectory(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
-	assert.NoError(t, err)
+func whenCallingFileCreate(name string, fn func(*fs.File, *error)) {
+	When(fmt.Sprintf("directory '%s' created", name), func() {
+		var err error
+		var file fs.File
+		JustBeforeEach(func() {
+			file, err = fsys.Create(name)
+		})
 
-	// /
-	// └── file.txt (regular file, will be used as parent path)
+		fn(&file, &err)
+	})
+}
 
-	_, err = fsys.Create("file.txt")
-	assert.NoError(t, err)
+func whenFileSuccessfullyCreated(dirName string, fn func(file *fs.File)) {
+	whenCallingFileCreate(dirName, func(fptr *fs.File, err *error) {
+		JustBeforeEach(func() {
+			Expect(*err).NotTo(HaveOccurred())
+			Expect(*fptr).NotTo(BeNil(), "file is not nil")
+		})
 
-	// Try to create child of regular file – should error
-	_, err = fsys.Create("file.txt/child.txt")
-	assert.Error(t, err)
+		It("succeed", func() {
+			// in case we don't have it in fn
+		})
+
+		fn(fptr)
+	})
 }

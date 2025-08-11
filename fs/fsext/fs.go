@@ -26,7 +26,7 @@ import (
 
 // File system abstraction interface
 // Extends `fs.FS` interface with additional methods
-type Fs interface {
+type FS interface {
 	Open(name string) (File, error)
 	ReadDir(name string) ([]fs.DirEntry, error)
 	Stat

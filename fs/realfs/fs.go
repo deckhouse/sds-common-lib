@@ -30,7 +30,7 @@ var realfs = realFS{}
 // Returns fsext.FS implementation for real filesystem
 // It is aimed to replace direct usage of `os` package to decouple filesystem
 // opereations with interface in order to make them mockable
-func GetFS() fsext.Fs {
+func GetFS() fsext.FS {
 	return realfs
 }
 

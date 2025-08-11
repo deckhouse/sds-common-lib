@@ -22,17 +22,17 @@ import (
 )
 
 // Internal struct implementing fs.FileInfo
-type fileInfo struct {
-	f *File
+type mockFileInfo struct {
+	f *MockFile
 }
 
-func newFileInfo(f *File) fs.FileInfo {
-	return fileInfo{f: f}
+func newMockFileInfo(f *MockFile) fs.FileInfo {
+	return mockFileInfo{f: f}
 }
 
-func (fi fileInfo) Name() string       { return fi.f.Name }
-func (fi fileInfo) Size() int64        { return fi.f.Size }
-func (fi fileInfo) Mode() fs.FileMode  { return fi.f.Mode }
-func (fi fileInfo) ModTime() time.Time { return fi.f.ModTime }
-func (fi fileInfo) IsDir() bool        { return fi.f.Mode.IsDir() }
-func (fi fileInfo) Sys() interface{}   { return fi.f.Sys }
+func (fi mockFileInfo) Name() string       { return fi.f.Name }
+func (fi mockFileInfo) Size() int64        { return fi.f.Size }
+func (fi mockFileInfo) Mode() fs.FileMode  { return fi.f.Mode }
+func (fi mockFileInfo) ModTime() time.Time { return fi.f.ModTime }
+func (fi mockFileInfo) IsDir() bool        { return fi.f.Mode.IsDir() }
+func (fi mockFileInfo) Sys() interface{}   { return fi.f.Sys }

@@ -45,7 +45,7 @@ func RWContentFromString(s string) *RWContent {
 }
 
 // Attaches RWContent as content provider to the file
-func (c *RWContent) SetupFile(f *File) {
+func (c *RWContent) SetupFile(f *MockFile) {
 	f.Content = c
 	f.Size = int64(len(c.data))
 }
@@ -65,7 +65,7 @@ func (c *RWContent) GetString() string {
 // ReadAt copies len(p) bytes starting at offset off into p. It follows the
 // semantics of io.ReaderAt. If the requested range goes beyond the end of the
 // slice, the function copies the remaining bytes and returns io.EOF.
-func (c *RWContent) ReadAt(file *File, p []byte, off int64) (n int, err error) {
+func (c *RWContent) ReadAt(file *MockFile, p []byte, off int64) (n int, err error) {
 	if off >= int64(len(c.data)) {
 		return 0, io.EOF
 	}
@@ -82,7 +82,7 @@ func (c *RWContent) ReadAt(file *File, p []byte, off int64) (n int, err error) {
 // WriteAt writes len(p) bytes starting at offset off to the underlying slice.
 // The slice is automatically grown (filling the gap with zeros) when the write
 // goes beyond the current length. File size is updated accordingly.
-func (c *RWContent) WriteAt(file *File, p []byte, off int64) (n int, err error) {
+func (c *RWContent) WriteAt(file *MockFile, p []byte, off int64) (n int, err error) {
 	// Ensure the underlying slice is large enough.
 	end := off + int64(len(p))
 	if end > int64(len(c.data)) {
