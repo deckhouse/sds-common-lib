@@ -43,8 +43,10 @@ jobs:
               echo "Running linter in $dir (edition: $edition)"
               golangci-lint run --allow-parallel-runners --build-tags $edition
               if [ $? -ne 0 ]; then
-                echo "Linter failed in $dir (edition: $edition)"
+                echo "Linter FAILED in $dir (edition: $edition)"
                 failed='true'
+              else
+                echo "Linter PASSED in $dir (edition: $edition)"
               fi
             done
           # done
