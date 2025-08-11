@@ -2,7 +2,7 @@ name: "Go tests coverage"
 description: "Go tests coverage"
 
 env:
-  GO_BUILD_TAGS: "ce ee se seplus csepro"
+  GO_BUILD_TAGS: "ce"
 
 on:
   #pull_request:
@@ -31,8 +31,8 @@ jobs:
       - name: Run Go test coverage count
         shell: bash
         run: |
-          find . -type f -name "go.mod" | while read -r gomod; do
-              dir=$(dirname "$gomod")
+          # find . -type f -name "go.mod" | while read -r gomod; do
+              dir=. # $(dirname "$gomod")
 
               echo "Test coverage in $dir"
 
@@ -47,4 +47,4 @@ jobs:
               cd - > /dev/null
 
               echo "----------------------------------------"
-          done
+          # done

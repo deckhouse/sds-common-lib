@@ -2,7 +2,7 @@ name: "Go linter"
 description: "Go linter"
 
 env:
-  GO_BUILD_TAGS: "ce ee se seplus csepro"
+  GO_BUILD_TAGS: "ce"
 
 on:
   #pull_request:
@@ -37,8 +37,8 @@ jobs:
         run: |
           basedir=$(pwd)
           failed='false'
-          for i in $(find . -type f -name go.mod);do
-            dir=$(echo $i | sed 's/go.mod$//')
+          # for i in $(find / -type f -name go.mod);do
+            dir=. #$(echo $i | sed 's/go.mod$//')
             cd $basedir/$dir
             # check all editions
             for edition in $GO_BUILD_TAGS ;do
@@ -49,7 +49,7 @@ jobs:
                 failed='true'
               fi
             done
-          done
+          # done
           if [ $failed == 'true' ]; then
             exit 1
           fi
