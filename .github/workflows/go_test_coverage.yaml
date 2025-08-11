@@ -1,0 +1,34 @@
+name: "Go test coverage check"
+description: "Go test coverage check"
+
+env:
+  GO_BUILD_TAGS: "ce ee se seplus csepro"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Go environment
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.24"
+
+    - name: Run Go test coverage count
+      shell: bash
+      run: |
+        find / -type f -name "go.mod" | while read -r gomod; do
+            dir=$(dirname "$gomod")
+
+            echo "Test coverage in $dir"
+
+            cd "$dir" || continue
+
+            for tag in $GO_BUILD_TAGS; do
+                echo "  Build tag: $tag"
+
+                go test ./... -cover -tags "$tag"
+            done
+
+            cd - > /dev/null
+
+            echo "----------------------------------------"
+        done
