@@ -13,7 +13,10 @@ func TestBatcher_NoCooldown(t *testing.T) {
 	batcher := NewBatcher(nil)
 
 	for i := range batchSize {
-		batcher.Add(i)
+		err := batcher.Add(i)
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -65,7 +68,10 @@ func TestBatcher_WithCooldown(t *testing.T) {
 	adderDone := make(chan struct{})
 	go func() {
 		for ctx.Err() == nil {
-			batcher.Add(true)
+			err := batcher.Add(true)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 			time.Sleep(time.Microsecond)
 		}
 		adderDone <- struct{}{}
