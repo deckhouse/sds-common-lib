@@ -1,0 +1,56 @@
+name: "Go linter"
+
+env:
+  GO_BUILD_TAGS: "ce"
+  GOPROXY: ${{ secrets.GOPROXY }}
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  go_tests:
+    name: Go linter
+    runs-on: [self-hosted, regular]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install golangci-lint
+        shell: bash
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
+
+      - name: Run Go lint
+        shell: bash
+        run: |
+          basedir=$(pwd)
+          failed='false'
+          # for i in $(find . -type f -name go.mod);do
+            dir=. #$(echo $i | sed 's/go.mod$//')
+            cd $basedir/$dir
+            # check all editions
+            for edition in $GO_BUILD_TAGS ;do
+              echo "Running linter in $dir (edition: $edition)"
+              golangci-lint run --allow-parallel-runners --build-tags $edition
+              if [ $? -ne 0 ]; then
+                echo "Linter FAILED in $dir (edition: $edition)"
+                failed='true'
+              else
+                echo "Linter PASSED in $dir (edition: $edition)"
+              fi
+            done
+          # done
+          if [ $failed == 'true' ]; then
+            exit 1
+          fi

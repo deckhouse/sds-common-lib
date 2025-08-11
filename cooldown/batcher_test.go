@@ -13,7 +13,10 @@ func TestBatcher_NoCooldown(t *testing.T) {
 	batcher := NewBatcher(nil)
 
 	for i := range batchSize {
-		batcher.Add(i)
+		err := batcher.Add(i)
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -63,9 +66,14 @@ func TestBatcher_WithCooldown(t *testing.T) {
 
 	// adder
 	adderDone := make(chan struct{})
+	errCh := make(chan error, 1)
+
 	go func() {
 		for ctx.Err() == nil {
-			batcher.Add(true)
+			err := batcher.Add(true)
+			if err != nil {
+				errCh <- err
+			}
 			time.Sleep(time.Microsecond)
 		}
 		adderDone <- struct{}{}
@@ -92,7 +100,14 @@ func TestBatcher_WithCooldown(t *testing.T) {
 
 	assertDurationApproximatelyEqual(t, delays[6], cdDelay/2, timeDelta)
 
-	<-adderDone
+	for {
+		select {
+		case err := <-errCh:
+			t.Fatalf("unexpected err: %v", err)
+		case <-adderDone:
+			return
+		}
+	}
 }
 
 func assertDurationApproximatelyEqual(
