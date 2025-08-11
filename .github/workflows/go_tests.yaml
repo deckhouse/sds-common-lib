@@ -2,6 +2,7 @@ name: "Go tests"
 
 env:
   GO_BUILD_TAGS: "ce"
+  CI_COMMIT_REF_NAME: ${{ github.ref_name }}
   GOPROXY: ${{ secrets.GOPROXY }}
 
 on:
@@ -21,7 +22,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
       - name: Setup Go environment
         uses: actions/setup-go@v5
         with:
