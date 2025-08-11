@@ -35,8 +35,6 @@ jobs:
         run: |
           basedir=$(pwd)
           failed='false'
-          pwd
-          ls -la
           # for i in $(find . -type f -name go.mod);do
             dir=. #$(echo $i | sed 's/go.mod$//')
             cd $basedir/$dir
