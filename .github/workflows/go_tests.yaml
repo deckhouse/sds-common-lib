@@ -1,5 +1,4 @@
 name: "Go tests"
-description: "Go tests"
 
 env:
   GO_BUILD_TAGS: "ce"
@@ -18,9 +17,10 @@ jobs:
   go_tests:
     name: Go tests
     runs-on: [self-hosted, regular]
-
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Setup Go environment
         uses: actions/setup-go@v5
         with:
