@@ -2,6 +2,7 @@ name: "Go linter"
 
 env:
   GO_BUILD_TAGS: "ce"
+  GOPROXY: ${{ secrets.GOPROXY }}
 
 on:
   pull_request:
