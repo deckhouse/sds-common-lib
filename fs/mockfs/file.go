@@ -61,7 +61,7 @@ func (dir *MockFile) readDir() ([]fs.DirEntry, error) {
 	entries := make([]fs.DirEntry, 0, len(dir.Children)-2)
 	for child := range dir.Children {
 		if child != "." && child != ".." {
-			entries = append(entries, dirEntry{f: dir.Children[child]})
+			entries = append(entries, dirEntry{dir.Children[child]})
 		}
 	}
 
@@ -118,7 +118,7 @@ func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	// Take n children starting from offset
 	entries := make([]fs.DirEntry, 0, n)
 	for i := 0; i < n && f.readDirOffset < len(f.sortedChildren); i++ {
-		entries = append(entries, dirEntry{f: f.sortedChildren[f.readDirOffset]})
+		entries = append(entries, dirEntry{f.sortedChildren[f.readDirOffset]})
 		f.readDirOffset++
 	}
 

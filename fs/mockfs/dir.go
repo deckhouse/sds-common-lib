@@ -20,10 +20,10 @@ import "io/fs"
 
 // dirEntry implements fs.DirEntry backed by File
 type dirEntry struct {
-	f *MockFile
+	*MockFile
 }
 
-func (de dirEntry) Name() string               { return de.f.Name }
-func (de dirEntry) IsDir() bool                { return de.f.Mode.IsDir() }
-func (de dirEntry) Type() fs.FileMode          { return de.f.Mode.Type() }
-func (de dirEntry) Info() (fs.FileInfo, error) { return de.f.stat() }
+func (de dirEntry) Name() string               { return de.MockFile.Name }
+func (de dirEntry) IsDir() bool                { return de.Mode.IsDir() }
+func (de dirEntry) Type() fs.FileMode          { return de.Mode.Type() }
+func (de dirEntry) Info() (fs.FileInfo, error) { return de.MockFile.stat() }
