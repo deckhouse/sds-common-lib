@@ -25,6 +25,11 @@ func (d dispatchingWriter) Write(p []byte) (n int, err error) {
 
 var _ io.Writer = dispatchingWriter{}
 
+// newInitializedConfig builds an [initializedConfig] from the provided [Config]
+// and log destination. If logDst is nil, the package-level [LogDst] is used.
+// It initializes a slog.Handler according to the configuration (text or JSON
+// format, level, optional callsite) and sets a ReplaceAttr hook to normalize
+// level rendering and optionally stringify attribute values.
 func newInitializedConfig(cfg Config, logDst io.Writer) initializedConfig {
 	if logDst == nil {
 		logDst = LogDst
