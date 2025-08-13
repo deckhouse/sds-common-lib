@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package fake_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,26 +30,26 @@ import (
 
 // Positive: create directory in a subdirectory with absolute path
 func TestMkdirAbsolutePathInSubdir(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 	//     └── dir1
 
-	_, err = mockfs.CreateFile(&fsys.Root, "a", os.ModeDir)
+	_, err = fsys.Root.CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fsys.GetFile("/a/dir1")
+	d1, err := fake.BuilderForOS(fsys).GetFile("/a/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode.IsDir(), "dir1 should be directory")
 }
 
 // Positive: create directory in a current directory with relative path
 func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
@@ -58,34 +58,34 @@ func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
 	// Mkdir in root
 	err = fsys.Mkdir("dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fsys.GetFile("/dir1")
+	d1, err := fake.BuilderForOS(fsys).GetFile("/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode.IsDir(), "dir1 should be directory")
 }
 
 // Positive: create directory in a subdirectory with relative path
 func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 	//     └── dir1
 
-	_, err = mockfs.CreateFile(&fsys.Root, "a", os.ModeDir)
+	_, err = fsys.Root.CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	// Mkdir in /a
 	err = fsys.Mkdir("a/dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fsys.GetFile("/a/dir1")
+	d1, err := fake.BuilderForOS(fsys).GetFile("/a/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode.IsDir(), "dir1 should be directory")
 }
 
 // Negative: create directory in a non-existent directory
 func TestMkdirNonExistentParent(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
@@ -94,10 +94,10 @@ func TestMkdirNonExistentParent(t *testing.T) {
 
 // Negative: create directory in a non-directory
 func TestMkdirNonDirectory(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = mockfs.CreateFile(&fsys.Root, "a", 0)
+	_, err = fsys.Root.CreateChild("a", 0)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/file.txt", 0o755)
@@ -106,10 +106,10 @@ func TestMkdirNonDirectory(t *testing.T) {
 
 // Negative: directory already exists
 func TestMkdirDirectoryExists(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = mockfs.CreateFile(&fsys.Root, "dir1", os.ModeDir)
+	_, err = fsys.Root.CreateChild("dir1", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/dir1", 0o755)
@@ -118,29 +118,29 @@ func TestMkdirDirectoryExists(t *testing.T) {
 
 // Positive: create multiple directories in path
 func TestMkdirAllRelativePathWithRoot(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// MkdirAll nested path
 	err = fsys.MkdirAll("foo/bar/baz", 0o755)
 	assert.NoError(t, err)
 
-	foo, err := fsys.GetFile("/foo")
+	foo, err := fake.BuilderForOS(fsys).GetFile("/foo")
 	assert.NoError(t, err)
 	assert.True(t, foo.Mode.IsDir(), "foo should be directory created via MkdirAll")
 
-	bar, err := fsys.GetFile("/foo/bar")
+	bar, err := fake.BuilderForOS(fsys).GetFile("/foo/bar")
 	assert.NoError(t, err)
 	assert.True(t, bar.Mode.IsDir(), "bar should be directory created via MkdirAll")
 
-	baz, err := fsys.GetFile("/foo/bar/baz")
+	baz, err := fake.BuilderForOS(fsys).GetFile("/foo/bar/baz")
 	assert.NoError(t, err)
 	assert.True(t, baz.Mode.IsDir(), "baz should be directory created via MkdirAll")
 }
 
 // Positive: create multiple directories already exists (do nothing)
 func TestMkdirAllRelativePathWithExistingDirs(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	err = fsys.MkdirAll("foo/bar/baz", 0o755)

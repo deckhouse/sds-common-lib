@@ -14,16 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package failer
 
 import (
-	"testing"
+	iofs "io/fs"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-func TestMockFs(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Mockfs Suite")
+type FS struct {
+	os     fs.OS
+	fs     fs.FS
+	failer Failer
+}
+
+// Open implements fs.FS.
+func (f *FS) Open(name string) (iofs.File, error) {
+	if err := f.failer.ShouldFail(f.os, fs.OpenOp, nil, name); err != nil {
+		return nil, err
+	}
+	file, err := f.os.Open(name)
+	return NewFile(file, f.os, f.failer), err
+}
+
+var _ fs.FS = (*FS)(nil)
+
+func NewFS(fs fs.FS, os fs.OS, failer Failer) *FS {
+	return &FS{os: os, fs: fs, failer: failer}
 }

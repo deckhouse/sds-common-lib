@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package fake_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,13 +30,13 @@ import (
 
 // Positive: stat regular file
 func TestStatRegularFile(t *testing.T) {
-	fs, err := mockfs.NewFsMock()
+	fs, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// └── a.txt
 
-	fileA, err := mockfs.CreateFile(&fs.Root, "a.txt", 0)
+	fileA, err := fs.Root.CreateChild("a.txt", 0)
 	assert.NoError(t, err)
 
 	info, err := fs.Stat("a.txt")
@@ -49,7 +49,7 @@ func TestStatRegularFile(t *testing.T) {
 
 // Negative: file not found
 func TestStatNonExistentFile(t *testing.T) {
-	fs, err := mockfs.NewFsMock()
+	fs, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	_, err = fs.Stat("nonexistent")
@@ -58,17 +58,17 @@ func TestStatNonExistentFile(t *testing.T) {
 
 // Positive: symlink
 func TestLstatSymlink(t *testing.T) {
-	fs, err := mockfs.NewFsMock()
+	fs, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// ├── a.txt
 	// └── link.txt -> /a.txt
 
-	_, err = mockfs.CreateFile(&fs.Root, "a.txt", 0)
+	_, err = fs.Root.CreateChild("a.txt", 0)
 	assert.NoError(t, err)
 
-	link, err := mockfs.CreateFile(&fs.Root, "link.txt", os.ModeSymlink)
+	link, err := fs.Root.CreateChild("link.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link.LinkSource = "/a.txt"
 
@@ -81,7 +81,7 @@ func TestLstatSymlink(t *testing.T) {
 
 // Negative: file not found
 func TestLstatNonExistentFile(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	_, err = fsys.Lstat("nonexistent")

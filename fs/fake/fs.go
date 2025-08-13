@@ -14,16 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs
+package fake
 
-import "io/fs"
+import (
+	iofs "io/fs"
+	"path/filepath"
 
-// dirEntry implements fs.DirEntry backed by File
-type dirEntry struct {
-	*MockFile
+	"github.com/deckhouse/sds-common-lib/fs"
+)
+
+type FS struct {
+	root string
+	os   *OS
 }
 
-func (de dirEntry) Name() string               { return de.MockFile.Name }
-func (de dirEntry) IsDir() bool                { return de.Mode.IsDir() }
-func (de dirEntry) Type() fs.FileMode          { return de.Mode.Type() }
-func (de dirEntry) Info() (fs.FileInfo, error) { return de.MockFile.stat() }
+var _ fs.FS = (*FS)(nil)
+
+func NewFS(root string, o *OS) *FS {
+	if filepath.IsLocal(root) {
+		root = filepath.Join(o.CurDir.Path, root)
+		root = filepath.Clean(root)
+	}
+	return &FS{root: root, os: o}
+}
+
+func (m *FS) Open(name string) (iofs.File, error) {
+	return m.os.Open(filepath.Join(m.root, name))
+}

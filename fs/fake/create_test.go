@@ -14,25 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package fake_test
 
 import (
 	"fmt"
-	"io/fs"
 	"path/filepath"
 
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var fsys *mockfs.MockFS
+var fsys fake.OSBuilder
 
 var _ = Describe("Mockfs", func() {
 	var err error
 	JustBeforeEach(func() {
-		fsys, err = mockfs.NewFsMock()
+		os, err := fake.NewOS("/")
+		fsys = fake.BuilderForOS(os)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
