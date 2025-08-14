@@ -17,7 +17,6 @@ limitations under the License.
 package slogh
 
 import (
-	"io"
 	"strings"
 )
 
@@ -33,9 +32,15 @@ type Config struct {
 	// Whether to string attribute values before outputting.
 	// e.g. `5` will become `"5"`
 	StringValues StringValues
+}
 
-	// for testing purposes
-	logDst io.Writer
+func (cfg *Config) UpdateConfigData(data map[string]string) error {
+	newCfg := Config{}
+	if err := newCfg.UnmarshalData(data); err != nil {
+		return err
+	}
+	*cfg = newCfg
+	return nil
 }
 
 func (cfg *Config) MarshalData() map[string]string {

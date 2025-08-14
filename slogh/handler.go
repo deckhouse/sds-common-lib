@@ -19,9 +19,9 @@ package slogh
 import (
 	"context"
 	"log/slog"
-	"os"
+	"slices"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -29,45 +29,36 @@ var _ slog.Handler = &Handler{}
 
 // Opinionated Deckhouse-specific [slog.Handler].
 type Handler struct {
-	cfg Config
-	w   slog.Handler
-	// protects getting/setting of cfg or cfg+w;
-	// it's not protecting operations inside w, which are expected to be safe
-	// it's not protecting getting of w without cfg, which is safe
-	mu *sync.Mutex
-}
-
-// Initializes new handler with opts.
-// Use zero [Config] for default handler.
-func NewHandler(cfg Config) *Handler {
-	h := &Handler{mu: &sync.Mutex{}}
-	h.init(cfg)
-	return h
+	config atomic.Value // [InitializedConfig]
+	// functions, which should be applied on a next w (reloaded), in order to
+	// mimic the behaviour of an old, wrapped config Handler.
+	wrappers []func(slog.Handler) slog.Handler
 }
 
 // Enabled implements slog.Handler.
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.w.Enabled(ctx, level)
+	return h.ensureFreshConfig().Handler.Enabled(ctx, level)
 }
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	cfg, w := h.state()
+	cfg := h.ensureFreshConfig()
 
 	if cfg.Render == RenderEnabled {
-		h.renderRecord(&r)
+		renderRecord(&r)
 	}
 
-	return w.Handle(ctx, r)
+	return cfg.Handler.Handle(ctx, r)
 }
 
 // WithAttrs implements slog.Handler.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	cfg, w := h.state()
+	wrapper := func(w slog.Handler) slog.Handler {
+		return w.WithAttrs(attrs)
+	}
+
 	return &Handler{
-		cfg: cfg,
-		mu:  &sync.Mutex{},
-		w:   w.WithAttrs(attrs),
+		wrappers: append(slices.Clone(h.wrappers), wrapper),
 	}
 }
 
@@ -76,101 +67,42 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
 	}
-	cfg, w := h.state()
+
+	wrapper := func(w slog.Handler) slog.Handler {
+		return w.WithGroup(name)
+	}
+
 	return &Handler{
-		cfg: cfg,
-		mu:  &sync.Mutex{},
-		w:   w.WithGroup(name),
+		wrappers: append(slices.Clone(h.wrappers), wrapper),
 	}
 }
 
-// Gets current config.
-func (h *Handler) Config() Config {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.cfg
-}
+func (h *Handler) ensureFreshConfig() *initializedConfig {
+	freshCfg := loadInitializedConfig()
 
-// Sets current config.
-func (h *Handler) UpdateConfig(cfg Config) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	localCfg := h.config.Load()
 
-	h.init(cfg)
-}
-
-func (h *Handler) UpdateConfigData(data map[string]string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	cfg := &Config{}
-	if err := cfg.UnmarshalData(data); err != nil {
-		return err
-	}
-
-	h.init(*cfg)
-	return nil
-}
-
-func (h *Handler) init(cfg Config) {
-	if cfg.logDst == nil {
-		if h.cfg.logDst == nil {
-			cfg.logDst = os.Stderr
-		} else {
-			cfg.logDst = h.cfg.logDst
-		}
-	}
-
-	h.cfg = cfg
-
-	opts := &slog.HandlerOptions{
-		Level:     slog.Level(cfg.Level),
-		AddSource: cfg.Callsite == CallsiteEnabled,
-	}
-
-	opts.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-		// handle built-ins
-		if len(groups) == 0 {
-			switch a.Key {
-			case slog.LevelKey:
-				// avoid "DEBUG-N"-like level rendering
-				return slog.String(a.Key, Level(a.Value.Any().(slog.Level)).String())
-			case slog.MessageKey:
-				fallthrough
-			case slog.TimeKey:
-				fallthrough
-			case slog.SourceKey:
-				return a
-			}
+	if localCfg == nil || localCfg.(initializedConfig).Config != freshCfg.Config {
+		for _, wrapper := range h.wrappers {
+			freshCfg.Handler = wrapper(freshCfg.Handler)
 		}
 
-		if cfg.StringValues == StringValuesEnabled {
-			return slog.String(a.Key, a.Value.String())
-		}
-		return a
+		h.config.Store(freshCfg)
+		return &freshCfg
 	}
 
-	if cfg.Format == FormatText {
-		h.w = slog.NewTextHandler(cfg.logDst, opts)
-	} else {
-		h.w = slog.NewJSONHandler(cfg.logDst, opts)
-	}
+	res := localCfg.(initializedConfig)
+	return &res
 }
 
-func (h *Handler) state() (Config, slog.Handler) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.cfg, h.w
-}
-
-func (h *Handler) renderRecord(r *slog.Record) {
+func renderRecord(r *slog.Record) {
 	var entered bool
 	var start int
 	var msgb *strings.Builder
 	var skip bool
 	rmsg := unsafe.Slice(unsafe.StringData(r.Message), len(r.Message))
 
-	for i := 0; i < len(rmsg); i++ {
+	for i := range rmsg {
 		c := rmsg[i]
 
 		if c != '\'' {
