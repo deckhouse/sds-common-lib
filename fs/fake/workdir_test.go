@@ -45,7 +45,7 @@ func TestChdir(t *testing.T) {
 	assert.Equal(t, fsys.GetWdFile(), dirA)
 
 	// Negative: chdir to non-dir
-	_, err = fsys.Root().CreateChild("file.txt", 0)
+	_, err = fsys.Root().CreateChild("file.txt")
 	assert.NoError(t, err)
 	err = fsys.Chdir("file.txt")
 	assert.Error(t, err)

@@ -147,7 +147,7 @@ func TestCreateFileChildSuccess(t *testing.T) {
 	root, _ := fake.NewRootFile("/")
 	dirA, err := root.CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	fileB, err := dirA.CreateChild("b.txt", 0)
+	fileB, err := dirA.CreateChild("b.txt")
 	assert.NoError(t, err)
 
 	assert.Same(t, fileB, dirA.GetChild("b.txt"), "Child not registered in parent map")
@@ -170,8 +170,8 @@ func TestCreateFileParentNilNonRoot(t *testing.T) {
 // Error: parent is not directory
 func TestCreateFileParentNotDir(t *testing.T) {
 	root, _ := fake.NewRootFile("/")
-	reg, _ := root.CreateChild("file.txt", 0)
-	_, err := reg.CreateChild("child", 0)
+	reg, _ := root.CreateChild("file.txt")
+	_, err := reg.CreateChild("child")
 	assert.Error(t, err)
 }
 
@@ -194,7 +194,7 @@ func TestGetFileRootSimple(t *testing.T) {
 	// /
 	// └── a
 
-	fileA, err := fs.Root().CreateChild("a", 0)
+	fileA, err := fs.Root().CreateChild("a")
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderForOS(fs).GetFile("/a")
@@ -216,7 +216,7 @@ func TestGetFileRootNested(t *testing.T) {
 	assert.NoError(t, err)
 	dirB, err := dirA.CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
-	fileC, err := dirB.CreateChild("file.txt", 0)
+	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderForOS(fs).GetFile("/a/b/file.txt")
@@ -238,7 +238,7 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 	assert.NoError(t, err)
 	dirB, err := dirA.CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
-	fileC, err := dirB.CreateChild("file.txt", 0)
+	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
 	fs.SetWdFile(dirA)
@@ -262,7 +262,7 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 	assert.NoError(t, err)
 	dirB, err := fs.Root().CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
-	target, err := dirB.CreateChild("foo", 0)
+	target, err := dirB.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Current directory set to /a
@@ -282,7 +282,7 @@ func TestGetFileSymlinkSimple(t *testing.T) {
 	// ├── target.txt
 	// └── link.txt -> /target.txt
 
-	target, err := fs.Root().CreateChild("target.txt", 0)
+	target, err := fs.Root().CreateChild("target.txt")
 	assert.NoError(t, err)
 	_, err = fs.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
@@ -302,7 +302,7 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 	// ├── link1.txt -> /target.txt
 	// └── link2.txt -> /link1.txt
 
-	target, err := fs.Root().CreateChild("target.txt", 0)
+	target, err := fs.Root().CreateChild("target.txt")
 	assert.NoError(t, err)
 
 	_, err = fs.Root().CreateChild("link1.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
@@ -329,7 +329,7 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 	// Create /bar directory with a file foo inside
 	barDir, err := fs.Root().CreateChild("bar", os.ModeDir)
 	assert.NoError(t, err)
-	fooFile, err := barDir.CreateChild("foo", 0)
+	fooFile, err := barDir.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Create symlink /link that points to /bar
@@ -355,7 +355,7 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 	// Construct /dir1/target
 	dir1, err := fs.Root().CreateChild("dir1", os.ModeDir)
 	assert.NoError(t, err)
-	target, err := dir1.CreateChild("target", 0)
+	target, err := dir1.CreateChild("target")
 	assert.NoError(t, err)
 
 	// Construct /dir1/dir2
@@ -400,7 +400,7 @@ func TestGetFileWrongFileType(t *testing.T) {
 	fs, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	fileA, err := fs.Root().CreateChild("a", 0) // regular file, NOT a directory
+	fileA, err := fs.Root().CreateChild("a") // regular file, NOT a directory
 	assert.NoError(t, err)
 	_, _ = fileA, err
 

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -72,16 +73,8 @@ func NewRootFile(path string) (*File, error) {
 	return createFile(nil, path, fs.ModeDir)
 }
 
-func (parent *File) CreateChild(name string, mode fs.FileMode, args ...any) (*File, error) {
-	return createFile(parent, name, mode, args...)
-}
-
-func (parent *File) CreateChildFile(name string, args ...any) (*File, error) {
-	return parent.CreateChild(name, 0, args...)
-}
-
-func (parent *File) CreateChildDir(name string) (*File, error) {
-	return parent.CreateChild(name, fs.ModeDir)
+func (parent *File) CreateChild(name string, args ...any) (*File, error) {
+	return createFile(parent, name, args...)
 }
 
 func (parent *File) GetChild(name string) *File {
@@ -91,9 +84,9 @@ func (parent *File) GetChild(name string) *File {
 // Creates a new entry in the given directory
 // `parent` directory to create a new entry in
 // `name` name of the new entry
-// `mode` mode of the new entry (0 for regular file, fs.ModDir, fs.ModeSymlink)
+// `args` could be [fs.FileMode], [fs.FileOpener], [fs.FileSizer], [fs.LinkReader]
 // Returns the new entry and an error if any
-func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File, error) {
+func createFile(parent *File, name string, args ...any) (*File, error) {
 	var path string
 
 	if name == "" {
@@ -114,7 +107,7 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 
 	f := &File{
 		name:     name,
-		mode:     mode,       // NOTE: file permissions are currently not used by MockFs
+		mode:     0,          // NOTE: file permissions are currently not used by MockFs
 		modTime:  time.Now(), // NOTE: file modification time is currently not randomized
 		parent:   parent,
 		children: nil,
@@ -126,20 +119,32 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 		return fmt.Errorf("decorator error (%d, %v)", i, arg)
 	}
 
+	var hasMode bool
+
 	for i, arg := range args {
 		newArgError := func() error {
 			return newArgError(i, arg)
 		}
 
 		var known bool
-
+		var modeFound bool
+		var mode fs.FileMode
 		err := errors.Join(
+			tryCastAndSetArgument(&mode, arg, &modeFound, newArgError),
 			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.linkReader, arg, &known, newArgError),
 		)
 
-		if !known {
+		if modeFound {
+			if hasMode {
+				return nil, fmt.Errorf("%v already set: %w", reflect.TypeOf(mode), newArgError())
+			}
+			modeFound = true
+			f.mode = mode
+		}
+
+		if !known && !modeFound {
 			unknownArgs[i] = arg
 		}
 

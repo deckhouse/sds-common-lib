@@ -44,7 +44,8 @@ func TestReadDirBasic(t *testing.T) {
 	names := []string{"file1", "file2"}
 	files := make([]*fake.File, len(names))
 	for i, name := range names {
-		files[i], _ = dir.CreateChild(name, 0)
+		files[i], err = dir.CreateChild(name)
+		assert.NoError(t, err)
 	}
 
 	fd, err := fsys.Open("/dir")

@@ -27,7 +27,7 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-// In-memory implementation of [fsapi.OS]
+// In-memory implementation of [fs.OS]
 type OS struct {
 	root       File           // root directory
 	wd         *File          // current directory
@@ -201,7 +201,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 	var file *File
 	var err error
 	if (flag & fs.O_CREATE) != 0 {
-		file, err = BuilderForOS(o).CreateChild(name, 0)
+		file, err = BuilderForOS(o).CreateChild(name)
 		if err != nil {
 			return nil, err
 		}

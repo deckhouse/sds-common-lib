@@ -43,7 +43,7 @@ func TestFileStat(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", 0o644)
+	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -62,7 +62,7 @@ func TestFileStatClosed(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", 0o644)
+	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -82,7 +82,7 @@ func TestFileClose(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", 0o644)
+	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -104,7 +104,7 @@ func TestFileName(t *testing.T) {
 
 	name := "file"
 
-	_, err = fsys.Root().CreateChild(name, 0o644)
+	_, err = fsys.Root().CreateChild(name, fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/" + name)
@@ -119,7 +119,7 @@ func TestFileNameClosed(t *testing.T) {
 	assert.NoError(t, err)
 
 	name := "file"
-	_, err = fsys.Root().CreateChild(name, 0o644)
+	_, err = fsys.Root().CreateChild(name, fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/" + name)
@@ -149,7 +149,8 @@ func TestFileReadDir(t *testing.T) {
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.File, len(names))
 	for i, name := range names {
-		f, _ := dir.CreateChild(name, 0)
+		f, err := dir.CreateChild(name)
+		assert.NoError(t, err)
 		files[i] = f
 	}
 
@@ -180,7 +181,7 @@ func TestFileReadDirChunks(t *testing.T) {
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.File, len(names))
 	for i, name := range names {
-		files[i], _ = dir.CreateChild(name, 0)
+		files[i], _ = dir.CreateChild(name)
 	}
 
 	fd, err := fsys.Open("/dir")
@@ -240,7 +241,7 @@ func TestFileSeekPositive(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create regular file and set its size manually for the test
-	_, err = fsys.Root().CreateChild("file", 0, fake.OfSize{100})
+	_, err = fsys.Root().CreateChild("file", fake.OfSize{100})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -267,7 +268,7 @@ func TestFileSeekOutOfBounds(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", 0, fake.OfSize{50})
+	_, err = fsys.Root().CreateChild("file", fake.OfSize{50})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -298,7 +299,7 @@ func TestFileSeekInvalidWhence(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", 0, fake.OfSize{10})
+	_, err = fsys.Root().CreateChild("file", fake.OfSize{10})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")

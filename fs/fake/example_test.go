@@ -71,7 +71,7 @@ func TestReadsFile(t *testing.T) {
 	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
 	assert.NoError(t, err)
 
-	_, err = fooDir.CreateChild("bar", 0, fake.RWContentFromString("Hello, world!"))
+	_, err = fooDir.CreateChild("bar", fake.RWContentFromString("Hello, world!"))
 	assert.NoError(t, err)
 
 	res, err := ReadsFile(fsys)
@@ -87,7 +87,7 @@ func TestReadWrite(t *testing.T) {
 	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
 	assert.NoError(t, err)
 
-	_, err = fooDir.CreateChildFile("bar", fake.NewRWContent())
+	_, err = fooDir.CreateChild("bar", fake.NewRWContent())
 	assert.NoError(t, err)
 
 	// Write to file
@@ -105,7 +105,7 @@ func TestFailureInjector(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test file.
-	_, err = fake.BuilderForOS(fsys).CreateChild("/file.txt", 0)
+	_, err = fake.BuilderForOS(fsys).CreateChild("/file.txt")
 	assert.NoError(t, err)
 
 	failsys := failer.NewOS(fsys, failer.NewProbabilityFailer(0, 1.0))

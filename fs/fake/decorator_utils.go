@@ -21,14 +21,14 @@ import (
 	"reflect"
 )
 
-func tryCastAndSetArgument[T comparable](ptr *T, arg any, known *bool, makeError func() error) error {
+func tryCastAndSetArgument[T comparable](ptr *T, arg any, found *bool, makeError func() error) error {
 	var zero T // nil for interface
 	if arg, ok := arg.(T); ok {
 		if *ptr != zero && *ptr != arg {
 			return fmt.Errorf("%v already set: %w", reflect.TypeFor[T](), makeError())
 		}
 		*ptr = arg
-		*known = true
+		*found = true
 	}
 	return nil
 }

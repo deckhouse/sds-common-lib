@@ -97,7 +97,7 @@ func TestMkdirNonDirectory(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("a", 0)
+	_, err = fsys.Root().CreateChild("a")
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/file.txt", 0o755)

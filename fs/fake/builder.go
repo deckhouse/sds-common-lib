@@ -18,7 +18,6 @@ package fake
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -32,8 +31,13 @@ func BuilderForOS(os *OS) OSBuilder {
 	return OSBuilder{OS: os}
 }
 
+func (b OSBuilder) WithChild(path string, args ...any) OSBuilder {
+	b.CreateChild(path, args...)
+	return b
+}
+
 // Creates a new entry by the given path
-func (m OSBuilder) CreateChild(path string, mode os.FileMode, args ...any) (*File, error) {
+func (m OSBuilder) CreateChild(path string, args ...any) (*File, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 
@@ -50,8 +54,8 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode, args ...any) (*Fil
 		return nil, fmt.Errorf("file exists: %s", path)
 	}
 
-	file, err := parent.CreateChild(dirName, mode, args...)
-	file.sys = &m.defaultSys
+	file, err := parent.CreateChild(dirName, args...)
+	file.sys = &m.OS.defaultSys
 	return file, err
 }
 

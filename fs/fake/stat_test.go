@@ -37,7 +37,7 @@ func TestStatRegularFile(t *testing.T) {
 	// /
 	// └── a.txt
 
-	_, err = theOS.Root().CreateChild("a.txt", 0)
+	_, err = theOS.Root().CreateChild("a.txt")
 	assert.NoError(t, err)
 
 	info, err := theOS.Stat("a.txt")
@@ -66,7 +66,7 @@ func TestLstatSymlink(t *testing.T) {
 	// ├── a.txt
 	// └── link.txt -> /a.txt
 
-	_, err = theOS.Root().CreateChild("a.txt", 0)
+	_, err = theOS.Root().CreateChild("a.txt")
 	assert.NoError(t, err)
 
 	_, err = theOS.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
