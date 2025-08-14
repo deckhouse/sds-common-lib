@@ -133,7 +133,7 @@ func TestCreateFileRootSuccess(t *testing.T) {
 	root, err := fake.NewRootFile("/")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "/", root.Path, "Root path invalid")
+	assert.Equal(t, "/", root.Path(), "Root path invalid")
 	assert.True(t, root.Mode().IsDir(), "Root should be a directory")
 	// Expect children map to contain self references
 	assert.Same(t, root, root.Children["."], "Root children '.' not pointing to self")
@@ -155,7 +155,7 @@ func TestCreateFileChildSuccess(t *testing.T) {
 
 	assert.Same(t, fileB, dirA.Children["b.txt"], "Child not registered in parent map")
 	expectedPath := "/a/b.txt"
-	assert.Equal(t, expectedPath, fileB.Path, "Unexpected file path")
+	assert.Equal(t, expectedPath, fileB.Path(), "Unexpected file path")
 }
 
 // Error: empty name

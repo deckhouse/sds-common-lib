@@ -32,7 +32,7 @@ var _ fs.FS = (*FS)(nil)
 
 func NewFS(root string, o *OS) *FS {
 	if filepath.IsLocal(root) {
-		root = filepath.Join(o.CurDir.Path, root)
+		root = filepath.Join(o.CurDir.Path(), root)
 		root = filepath.Clean(root)
 	}
 	return &FS{root: root, os: o}

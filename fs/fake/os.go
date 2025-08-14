@@ -53,7 +53,7 @@ func (o *OS) MakeRelativePath(curDir *File, path string) (*File, string, error) 
 	if filepath.IsAbs(path) {
 		var err error
 		curDir = &o.Root
-		path, err = filepath.Rel(curDir.Path, path)
+		path, err = filepath.Rel(curDir.Path(), path)
 		if err != nil {
 			return nil, "", err
 		}
@@ -229,7 +229,7 @@ func (o *OS) Getwd() (string, error) {
 		// Mock invariant violation
 		panic("current directory is not set")
 	}
-	return o.CurDir.Path, nil
+	return o.CurDir.Path(), nil
 }
 
 func (o *OS) Mkdir(name string, perm os.FileMode) error {
@@ -259,7 +259,7 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 				return err
 			}
 		} else if !child.Mode().IsDir() {
-			return toPathError(fmt.Errorf("%s is not a directory", child.Path), fs.MkDirAllOp, path)
+			return toPathError(fmt.Errorf("%s is not a directory", child.Path()), fs.MkDirAllOp, path)
 		}
 		dir = child
 	}

@@ -30,7 +30,7 @@ import (
 // Fake File system entry
 type File struct {
 	name       string           // base name of the file
-	Path       string           // full path of the file
+	path       string           // full path of the file
 	mode       fs.FileMode      // file mode bits
 	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
 	ModTime    time.Time        // modification time
@@ -42,6 +42,9 @@ type File struct {
 	fileSizer  fs.FileSizer
 }
 
+func (f *File) Path() string {
+	return f.path
+}
 func (f *File) Mode() fs.FileMode {
 	return f.mode
 }
@@ -173,10 +176,10 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 	if parent == nil {
 		path = name
 	} else {
-		path = filepath.Join(parent.Path, name)
+		path = filepath.Join(parent.Path(), name)
 		parent.Children[name] = f
 	}
 
-	f.Path = path
+	f.path = path
 	return f, nil
 }
