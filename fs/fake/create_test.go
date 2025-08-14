@@ -73,8 +73,8 @@ var _ = Describe("Mockfs", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(fileObj).NotTo(BeNil())
-				Expect(fileObj.Mode.IsDir()).To(BeFalse(), "Created file should not be directory")
-				Expect(fileObj.Mode.IsRegular()).To(BeTrue())
+				Expect(fileObj.Mode().IsDir()).To(BeFalse(), "Created file should not be directory")
+				Expect(fileObj.Mode().IsRegular()).To(BeTrue())
 			})
 		})
 

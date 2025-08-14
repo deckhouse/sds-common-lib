@@ -42,7 +42,7 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
 		return nil, err
 	}
 
-	if !parent.Mode.IsDir() {
+	if !parent.Mode().IsDir() {
 		return nil, fmt.Errorf("parent is not directory: %s", parentPath)
 	}
 

@@ -56,7 +56,7 @@ func newOpenedFile(entry *File) *FileDescriptor {
 func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	dir := f.File
 
-	if !dir.Mode.IsDir() {
+	if !dir.Mode().IsDir() {
 		return nil, toPathError(fmt.Errorf("not a directory: %s", dir.name), fs.ReadDirOp, dir.name)
 	}
 

@@ -19,7 +19,6 @@ package fake
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -32,7 +31,7 @@ import (
 type File struct {
 	name       string           // base name of the file
 	Path       string           // full path of the file
-	Mode       os.FileMode      // file mode bits
+	mode       fs.FileMode      // file mode bits
 	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
 	ModTime    time.Time        // modification time
 	LinkSource string           // symlink source (path to the file)
@@ -43,12 +42,16 @@ type File struct {
 	fileSizer  fs.FileSizer
 }
 
+func (f *File) Mode() fs.FileMode {
+	return f.mode
+}
+
 func (f *File) stat() (fs.FileInfo, error) {
 	return newFileInfo(f), nil
 }
 
 func (dir *File) readDir() ([]fs.DirEntry, error) {
-	if !dir.Mode.IsDir() {
+	if !dir.mode.IsDir() {
 		return nil, fmt.Errorf("not a directory: %s", dir.name)
 	}
 
@@ -63,10 +66,10 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 }
 
 func NewRootFile(path string) (*File, error) {
-	return createFile(nil, path, os.ModeDir)
+	return createFile(nil, path, fs.ModeDir)
 }
 
-func (parent *File) CreateChild(name string, mode os.FileMode, args ...any) (*File, error) {
+func (parent *File) CreateChild(name string, mode fs.FileMode, args ...any) (*File, error) {
 	return createFile(parent, name, mode, args...)
 }
 
@@ -75,15 +78,15 @@ func (parent *File) CreateChildFile(name string, args ...any) (*File, error) {
 }
 
 func (parent *File) CreateChildDir(name string) (*File, error) {
-	return parent.CreateChild(name, os.ModeDir)
+	return parent.CreateChild(name, fs.ModeDir)
 }
 
 // Creates a new entry in the given directory
 // `parent` directory to create a new entry in
 // `name` name of the new entry
-// `mode` mode of the new entry (0 for regular file, os.ModDir, os.ModeSymlink)
+// `mode` mode of the new entry (0 for regular file, fs.ModDir, fs.ModeSymlink)
 // Returns the new entry and an error if any
-func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File, error) {
+func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File, error) {
 	var path string
 
 	if name == "" {
@@ -94,7 +97,7 @@ func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File
 		return nil, errors.New("only root directory has no parent")
 	}
 
-	if parent != nil && !parent.Mode.IsDir() {
+	if parent != nil && !parent.mode.IsDir() {
 		return nil, errors.New("parent is not a directory")
 	}
 
@@ -104,7 +107,7 @@ func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File
 
 	f := &File{
 		name:       name,
-		Mode:       mode,       // NOTE: file permissions are currently not used by MockFs
+		mode:       mode,       // NOTE: file permissions are currently not used by MockFs
 		ModTime:    time.Now(), // NOTE: file modification time is currently not randomized
 		LinkSource: "",         // Configured later
 		Parent:     parent,

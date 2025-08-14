@@ -134,7 +134,7 @@ func TestCreateFileRootSuccess(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "/", root.Path, "Root path invalid")
-	assert.True(t, root.Mode.IsDir(), "Root should be a directory")
+	assert.True(t, root.Mode().IsDir(), "Root should be a directory")
 	// Expect children map to contain self references
 	assert.Same(t, root, root.Children["."], "Root children '.' not pointing to self")
 	assert.Nil(t, root.Children[".."], "Root children '..' should be nil")

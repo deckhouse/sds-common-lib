@@ -93,7 +93,7 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 
 	if tail == "" {
 		// This is the last segment of the path (file itself)
-		if followLink && child.Mode&os.ModeSymlink != 0 {
+		if followLink && child.Mode()&os.ModeSymlink != 0 {
 			// follow last symlink
 			return o.getFileRelative(child.Parent, child.LinkSource, true)
 		}
@@ -101,7 +101,7 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 		return child, nil
 	}
 
-	if child.Mode&os.ModeSymlink != 0 {
+	if child.Mode()&os.ModeSymlink != 0 {
 		// child.parent is not nil, because symlink can't be root
 		var err error
 		child, err = o.getFileRelative(child.Parent, child.LinkSource, true)
@@ -138,7 +138,7 @@ func (o *OS) Chmod(name string, mode fs.FileMode) error {
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
-	file.Mode = mode
+	file.mode = mode
 	return nil
 }
 
@@ -217,7 +217,7 @@ func (o *OS) Chdir(dir string) error {
 	if err != nil {
 		return toPathError(err, fs.ChDirOp, dir)
 	}
-	if !f.Mode.IsDir() {
+	if !f.Mode().IsDir() {
 		return toPathError(fmt.Errorf("not a directory: %s", dir), fs.ChDirOp, dir)
 	}
 	o.CurDir = f
@@ -258,7 +258,7 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 			if err != nil {
 				return err
 			}
-		} else if !child.Mode.IsDir() {
+		} else if !child.Mode().IsDir() {
 			return toPathError(fmt.Errorf("%s is not a directory", child.Path), fs.MkDirAllOp, path)
 		}
 		dir = child
@@ -282,7 +282,7 @@ func (o *OS) ReadLink(name string) (string, error) {
 		return "", err
 	}
 
-	if file.Mode&os.ModeSymlink == 0 {
+	if file.Mode()&os.ModeSymlink == 0 {
 		return "", toPathError(fmt.Errorf("not a symlink: %s", name), fs.ReadlinkOp, name)
 	}
 
