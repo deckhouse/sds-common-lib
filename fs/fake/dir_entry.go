@@ -22,12 +22,12 @@ import (
 
 // dirEntry implements fs.DirEntry backed by File
 type dirEntry struct {
-	*File
+	file *File
 }
 
 var _ fs.DirEntry = (*dirEntry)(nil)
 
-func (de dirEntry) Name() string               { return de.File.name }
-func (de dirEntry) IsDir() bool                { return de.Mode().IsDir() }
-func (de dirEntry) Type() fs.FileMode          { return de.Mode().Type() }
-func (de dirEntry) Info() (fs.FileInfo, error) { return de.File.stat() }
+func (de dirEntry) Name() string               { return de.file.name }
+func (de dirEntry) IsDir() bool                { return de.file.Mode().IsDir() }
+func (de dirEntry) Type() fs.FileMode          { return de.file.Mode().Type() }
+func (de dirEntry) Info() (fs.FileInfo, error) { return de.file.stat() }

@@ -64,37 +64,38 @@ var _ fs.FileOpener = (*fileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
 func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
-	canAddSeeker := f.ioSeeker == nil && !f.disableSeeker &&
-		f.ioReader == nil &&
-		f.ioWriter == nil &&
-		f.fileSizer != nil
 
-	if canAddSeeker {
-		args := make([]any, 0, 3)
-		args = append(args, f.fileSizer)
-		if f.ioReaderAt != nil {
-			args = append(args, f.ioReaderAt)
+	if f.file.Mode().IsDir() {
+		if f.dirReader == nil && !f.disableDirReader {
+			f.dirReader = newDirReader(f.file)
 		}
-		if f.ioWriterAt != nil {
-			args = append(args, f.ioWriterAt)
+	} else {
+		if f.ioSeeker == nil &&
+			!f.disableSeeker &&
+			f.ioReader == nil &&
+			f.ioWriter == nil &&
+			f.fileSizer != nil {
+			args := make([]any, 0, 3)
+			args = append(args, f.fileSizer)
+			if f.ioReaderAt != nil {
+				args = append(args, f.ioReaderAt)
+			}
+			if f.ioWriterAt != nil {
+				args = append(args, f.ioWriterAt)
+			}
+			seeker, err := NewSeeker(args...)
+			if err != nil {
+				return nil, err
+			}
+			f.ioSeeker = seeker
+			f.ioReader = seeker
+			f.ioWriter = seeker
+			f.ioReaderAt = seeker
+			f.ioWriterAt = seeker
 		}
-		seeker, err := NewSeeker(args...)
-		if err != nil {
-			return nil, err
-		}
-		f.ioSeeker = seeker
-		f.ioReader = seeker
-		f.ioWriter = seeker
-		f.ioReaderAt = seeker
-		f.ioWriterAt = seeker
 	}
 
-	if f.dirReader == nil && !f.disableDirReader {
-		f.dirReader = newDirReader(f.file)
-	}
-
-	canAddCloser := f.ioCloser == nil && !f.disableCloser
-	if canAddCloser {
+	if f.ioCloser == nil && !f.disableCloser {
 		args := []any{
 			f.ioReaderAt,
 			f.ioWriterAt,
@@ -146,35 +147,36 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 func NewFileOpener(file *File, args ...any) (*fileOpener, error) {
 	var f fileOpener
 	f.file = file
+
 	for i, arg := range args {
 		switch arg {
 		case ReadOnly:
 			f.disableWriter = true
 			f.disableWriterAt = true
-			break
+			continue
 		case WriteOnly:
 			f.disableReader = true
 			f.disableReaderAt = true
-			break
+			continue
 		case NoSeeker:
 			f.disableSeeker = true
-			break
+			continue
 		case NoSizer:
 			f.disableSizer = true
-			break
+			continue
 		case NoReader:
 			f.disableReader = true
-			break
+			continue
 		case NoWriter:
 			f.disableWriter = true
-			break
+			continue
 		case NoAt:
 			f.disableReaderAt = true
 			f.disableWriterAt = true
-			break
+			continue
 		case NoDirReader:
 			f.disableDirReader = true
-			break
+			continue
 		}
 
 		known := false
@@ -183,12 +185,12 @@ func NewFileOpener(file *File, args ...any) (*fileOpener, error) {
 		}
 
 		err := errors.Join(
-			// tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
-			// tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.ioReaderAt, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.ioWriterAt, arg, &known, newArgError),
-			// tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
-			// tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 		)
 
