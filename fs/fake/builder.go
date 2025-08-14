@@ -26,9 +26,7 @@ type OSBuilder struct {
 	*OS
 }
 
-type FileBuilder struct {
-	*File
-}
+type FileBuilder = *File
 
 func BuilderForOS(os *OS) OSBuilder {
 	return OSBuilder{OS: os}
@@ -59,6 +57,7 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
 
 // Returns the File object by the given relative or absolute path
 // Flowing symlinks
-func (m OSBuilder) GetFile(path string) (*File, error) {
-	return m.OS.getFileRelative(m.OS.CurDir, path, true)
+func (m OSBuilder) GetFile(path string) (FileBuilder, error) {
+	file, err := m.OS.getFileRelative(m.OS.CurDir, path, true)
+	return file, err
 }
