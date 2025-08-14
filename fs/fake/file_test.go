@@ -21,6 +21,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -42,7 +43,7 @@ func TestFileStat(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	file, err := fsys.Root.CreateChild("file", 0o644)
+	_, err = fsys.Root.CreateChild("file", 0o644)
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -50,9 +51,9 @@ func TestFileStat(t *testing.T) {
 
 	info, err := fd.Stat()
 	assert.NoError(t, err)
-	assert.Equal(t, file.Name, info.Name())
-	assert.Equal(t, file.Mode, info.Mode())
-	assert.Equal(t, file.Size, info.Size())
+	assert.Equal(t, "file", info.Name())
+	assert.Equal(t, fs.FileMode(0o644), info.Mode())
+	assert.Equal(t, int64(0), info.Size())
 	assert.False(t, info.IsDir(), "File should not be reported as directory")
 }
 
@@ -236,9 +237,8 @@ func TestFileSeekPositive(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create regular file and set its size manually for the test
-	file, err := fsys.Root.CreateChild("file", 0)
+	_, err = fsys.Root.CreateChild("file", 0, fake.OfSize{100})
 	assert.NoError(t, err)
-	file.Size = 100
 
 	fd, err := fsys.Open("/file")
 	assert.NoError(t, err)
@@ -264,9 +264,8 @@ func TestFileSeekOutOfBounds(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	file, err := fsys.Root.CreateChild("file", 0)
+	_, err = fsys.Root.CreateChild("file", 0, fake.OfSize{50})
 	assert.NoError(t, err)
-	file.Size = 50
 
 	fd, err := fsys.Open("/file")
 	assert.NoError(t, err)
@@ -296,9 +295,8 @@ func TestFileSeekInvalidWhence(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	file, err := fsys.Root.CreateChild("file", 0)
+	_, err = fsys.Root.CreateChild("file", 0, fake.OfSize{10})
 	assert.NoError(t, err)
-	file.Size = 10
 
 	fd, err := fsys.Open("/file")
 	assert.NoError(t, err)

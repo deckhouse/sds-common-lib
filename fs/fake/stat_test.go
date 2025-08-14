@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,20 +31,20 @@ import (
 
 // Positive: stat regular file
 func TestStatRegularFile(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	theOS, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// └── a.txt
 
-	fileA, err := fs.Root.CreateChild("a.txt", 0)
+	_, err = theOS.Root.CreateChild("a.txt", 0)
 	assert.NoError(t, err)
 
-	info, err := fs.Stat("a.txt")
+	info, err := theOS.Stat("a.txt")
 	assert.NoError(t, err)
-	assert.Equal(t, fileA.Name, info.Name(), "Incorrect file name from Stat")
-	assert.Equal(t, fileA.Mode, info.Mode(), "Incorrect file mode from Stat")
-	assert.Equal(t, fileA.Size, info.Size(), "Incorrect file size from Stat")
+	assert.Equal(t, "a.txt", info.Name(), "Incorrect file name from Stat")
+	assert.Equal(t, fs.FileMode(0), info.Mode(), "Incorrect file mode from Stat")
+	assert.Equal(t, int64(0), info.Size(), "Incorrect file size from Stat")
 	assert.False(t, info.IsDir(), "File should not be reported as directory")
 }
 
@@ -58,25 +59,25 @@ func TestStatNonExistentFile(t *testing.T) {
 
 // Positive: symlink
 func TestLstatSymlink(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	theOS, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
 	// /
 	// ├── a.txt
 	// └── link.txt -> /a.txt
 
-	_, err = fs.Root.CreateChild("a.txt", 0)
+	_, err = theOS.Root.CreateChild("a.txt", 0)
 	assert.NoError(t, err)
 
-	link, err := fs.Root.CreateChild("link.txt", os.ModeSymlink)
+	link, err := theOS.Root.CreateChild("link.txt", os.ModeSymlink)
 	assert.NoError(t, err)
 	link.LinkSource = "/a.txt"
 
-	info, err := fs.Lstat("link.txt")
+	info, err := theOS.Lstat("link.txt")
 	assert.NoError(t, err)
-	assert.Equal(t, link.Name, info.Name(), "Incorrect file name from Stat")
-	assert.Equal(t, link.Mode, info.Mode(), "Incorrect file mode from Stat")
-	assert.Equal(t, link.Size, info.Size(), "Incorrect file size from Stat")
+	assert.Equal(t, "link.txt", info.Name(), "Incorrect file name from Stat")
+	assert.Equal(t, fs.FileMode(0x8000000), info.Mode(), "Incorrect file mode from Stat")
+	assert.Equal(t, int64(0), info.Size(), "Incorrect file size from Stat")
 }
 
 // Negative: file not found

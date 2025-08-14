@@ -182,7 +182,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 		}
 	}
 
-	return newOpenedFile(file, o), nil
+	return file.fileOpener.OpenFile(flag, perm)
 }
 
 func (o *OS) Stat(name string) (fs.FileInfo, error) {

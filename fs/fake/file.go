@@ -19,34 +19,28 @@ package fake
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-)
 
-// Interface for fake file content
-// It allows flexible fake file content generation including on the fly
-// generation
-type FileContent interface {
-	ReadAt(file *File, p []byte, off int64) (n int, err error)
-	WriteAt(file *File, p []byte, off int64) (n int, err error)
-}
+	"github.com/deckhouse/sds-common-lib/fs"
+)
 
 // Fake File system entry
 type File struct {
 	Name       string           // base name of the file
 	Path       string           // full path of the file
-	Size       int64            // length in bytes for regular files; system-dependent for others
 	Mode       os.FileMode      // file mode bits
 	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
 	ModTime    time.Time        // modification time
 	LinkSource string           // symlink source (path to the file)
 	Parent     *File            // parent directory
 	Children   map[string]*File // children of the file (if the file is a directory)
-	Content    FileContent      // File read/write interface
+
+	fileOpener fs.FileOpener
+	fileSizer  fs.FileSizer
 }
 
 func (f *File) stat() (fs.FileInfo, error) {
@@ -108,35 +102,68 @@ func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File
 		return nil, errors.New("file name can't contain '/'")
 	}
 
-	newFile := &File{
+	f := &File{
 		Name:       name,
-		Size:       0,          // Configured later
 		Mode:       mode,       // NOTE: file permissions are currently not used by MockFs
 		ModTime:    time.Now(), // NOTE: file modification time is currently not randomized
 		LinkSource: "",         // Configured later
 		Parent:     parent,
 		Children:   nil,
-		Content:    nil,
+	}
+
+	unknownArgs := make(map[int]any, len(args))
+
+	newArgError := func(i int, arg any) error {
+		return fmt.Errorf("decorator error (%d, %v)", i, arg)
 	}
 
 	for i, arg := range args {
 		newArgError := func() error {
-			return fmt.Errorf("decorator error (%d, %v)", i, arg)
+			return newArgError(i, arg)
 		}
-		switch arg := arg.(type) {
-		case FileContent:
-			if newFile.Content != nil {
-				return nil, fmt.Errorf("content already set: %w", newArgError())
-			}
-			newFile.Content = arg
-		default:
-			return nil, fmt.Errorf("unknown argument: %w", newArgError())
+
+		var known bool
+
+		err := errors.Join(
+			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
+		)
+
+		if !known {
+			unknownArgs[i] = arg
+		}
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	newFile.Children = map[string]*File{
+	if f.fileOpener == nil {
+		args := make([]any, 0, len(unknownArgs)+1)
+		if f.fileSizer != nil {
+			args = append(args, f.fileSizer)
+		}
+
+		for _, arg := range unknownArgs {
+			args = append(args, arg)
+		}
+
+		var err error
+		f.fileOpener, err = NewFileOpener(f, args...)
+		if err != nil {
+			return nil, fmt.Errorf("creating file opener: %w", err)
+		}
+	} else if len(unknownArgs) > 0 {
+		var err error
+		for i, arg := range unknownArgs {
+			err = errors.Join(err, fmt.Errorf("unknown argument: %w", newArgError(i, arg)))
+		}
+		return nil, err
+	}
+
+	f.Children = map[string]*File{
 		// NOTE: probably, it should be a special case
-		".":  newFile,
+		".":  f,
 		"..": parent,
 	}
 
@@ -144,9 +171,9 @@ func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File
 		path = name
 	} else {
 		path = filepath.Join(parent.Path, name)
-		parent.Children[name] = newFile
+		parent.Children[name] = f
 	}
 
-	newFile.Path = path
-	return newFile, nil
+	f.Path = path
+	return f, nil
 }

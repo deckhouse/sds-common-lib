@@ -57,6 +57,14 @@ const (
 	ChmodOp    Op = "chmod"
 )
 
+type FileSizer interface {
+	Size() int64
+}
+
+type FileOpener interface {
+	OpenFile(flag int, perm FileMode) (File, error)
+}
+
 // File abstraction interface
 // Extends [fs.File] interface with additional methods
 // struct [os.File] actually implements this interface

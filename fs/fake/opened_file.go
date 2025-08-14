@@ -25,27 +25,35 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-// OpenedFile descriptor ("opened OpenedFile")
-type OpenedFile struct {
+// FileDescriptor descriptor ("opened FileDescriptor")
+type FileDescriptor struct {
 	*File
-	mockFs         *OS
 	isOpen         bool
-	seekOffset     int64 // File read/write position
 	readDirOffset  int
 	sortedChildren []*File // Cached dir entries for ReadDir
+
+	ioReaderAt io.ReaderAt
+	ioWriterAt io.WriterAt
+
+	ioWriter io.Writer
+	ioReader io.Reader
+	ioSeeker io.Seeker
+	ioCloser io.Closer
+
+	fileSizer fs.FileSizer
 }
 
-var _ fs.File = (*OpenedFile)(nil)
+var _ fs.File = (*FileDescriptor)(nil)
 
-func newOpenedFile(entry *File, mockFs *OS) *OpenedFile {
-	return &OpenedFile{File: entry, mockFs: mockFs, isOpen: true, readDirOffset: 0}
+func newOpenedFile(entry *File) *FileDescriptor {
+	return &FileDescriptor{File: entry, isOpen: true, readDirOffset: 0}
 }
 
 // =====================
 // `fsext.File` interface implementation for `Fd`
 // =====================
 
-func (f *OpenedFile) ReadDir(n int) ([]fs.DirEntry, error) {
+func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	dir := f.File
 
 	if !dir.Mode.IsDir() {
@@ -96,7 +104,7 @@ func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
 	return slice
 }
 
-func (f *OpenedFile) Stat() (fs.FileInfo, error) {
+func (f *FileDescriptor) Stat() (fs.FileInfo, error) {
 	if !f.isOpen {
 		return nil, fs.ErrClosed
 	}
@@ -104,7 +112,7 @@ func (f *OpenedFile) Stat() (fs.FileInfo, error) {
 	return f.File.stat()
 }
 
-func (f *OpenedFile) Close() error {
+func (f *FileDescriptor) Close() error {
 	if !f.isOpen {
 		return fs.ErrClosed
 	}
@@ -113,97 +121,67 @@ func (f *OpenedFile) Close() error {
 	return nil
 }
 
-func (f *OpenedFile) Name() string {
+func (f *FileDescriptor) Name() string {
 	return f.File.Name
 }
 
-func (f *OpenedFile) Read(p []byte) (n int, err error) {
+func (f *FileDescriptor) Read(p []byte) (n int, err error) {
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
 
-	if f.File.Content == nil {
-		return 0, errors.New("read operation is not implemented for this file")
+	if f.ioReader == nil {
+		return 0, errors.ErrUnsupported
 	}
 
-	n, err = f.File.Content.ReadAt(f.File, p, f.seekOffset)
-	if err != nil {
-		return n, err
-	}
-
-	f.seekOffset += int64(n)
-	return n, err
+	return f.ioReader.Read(p)
 }
 
-func (f *OpenedFile) ReadAt(p []byte, off int64) (n int, err error) {
+func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
 
-	if f.File.Content == nil {
-		return 0, errors.New("read operation is not implemented for this file")
+	if f.ioReaderAt == nil {
+		return 0, errors.ErrUnsupported
 	}
 
-	return f.File.Content.ReadAt(f.File, p, off)
+	return f.ioReaderAt.ReadAt(p, off)
 }
 
-func (f *OpenedFile) Write(p []byte) (n int, err error) {
+func (f *FileDescriptor) Write(p []byte) (n int, err error) {
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
 
-	if f.File.Content == nil {
-		return 0, errors.New("write operation is not implemented for this file")
+	if f.ioWriter == nil {
+		return 0, errors.ErrUnsupported
 	}
 
-	n, err = f.File.Content.WriteAt(f.File, p, f.seekOffset)
-	if err != nil {
-		return n, err
-	}
-
-	f.seekOffset += int64(n)
-	return n, err
+	return f.ioWriter.Write(p)
 }
 
-func (f *OpenedFile) WriteAt(p []byte, off int64) (n int, err error) {
+func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
 
-	if f.File.Content == nil {
-		return 0, errors.New("write operation is not implemented for this file")
+	if f.ioWriterAt == nil {
+		return 0, errors.ErrUnsupported
 	}
 
-	return f.File.Content.WriteAt(f.File, p, off)
+	return f.ioWriterAt.WriteAt(p, off)
 }
 
-func (f *OpenedFile) Seek(offset int64, whence int) (int64, error) {
+func (f *FileDescriptor) Seek(offset int64, whence int) (int64, error) {
 	// Ensure the descriptor is open
 	if !f.isOpen {
 		return 0, fs.ErrClosed
 	}
 
-	var base int64
-	switch whence {
-	case io.SeekStart: // relative to the start of the file
-		base = 0
-	case io.SeekCurrent: // relative to the current offset
-		base = f.seekOffset
-	case io.SeekEnd: // relative to the end of the file
-		base = f.File.Size
-	default:
-		return 0, fmt.Errorf("invalid whence: %d", whence)
+	if f.ioSeeker == nil {
+		return 0, errors.ErrUnsupported
 	}
 
-	newOffset := base + offset
-	if newOffset < 0 {
-		return 0, errors.New("negative resulting offset")
-	}
-
-	if newOffset > f.File.Size {
-		return 0, fmt.Errorf("offset %d beyond file size %d", newOffset, f.File.Size)
-	}
-
-	f.seekOffset = newOffset
-	return newOffset, nil
+	return f.ioSeeker.Seek(offset, whence)
 }

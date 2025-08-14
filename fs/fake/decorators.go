@@ -17,27 +17,18 @@ limitations under the License.
 package fake
 
 import (
-	"io/fs"
-	"time"
+	"fmt"
+	"reflect"
 )
 
-// Internal struct implementing fs.FileInfo
-type fileInfo struct {
-	f *File
-}
-
-func newFileInfo(f *File) fs.FileInfo {
-	return fileInfo{f: f}
-}
-
-func (fi fileInfo) Name() string { return fi.f.Name }
-func (fi fileInfo) Size() int64 {
-	if fi.f.fileSizer == nil {
-		return 0
+func tryCastAndSetArgument[T comparable](ptr *T, arg any, known *bool, makeError func() error) error {
+	var zero T // nil for interface
+	if arg, ok := arg.(T); ok {
+		if *ptr != zero && *ptr != arg {
+			return fmt.Errorf("%v already set: %w", reflect.TypeFor[T](), makeError())
+		}
+		*ptr = arg
+		*known = true
 	}
-	return fi.f.fileSizer.Size()
+	return nil
 }
-func (fi fileInfo) Mode() fs.FileMode  { return fi.f.Mode }
-func (fi fileInfo) ModTime() time.Time { return fi.f.ModTime }
-func (fi fileInfo) IsDir() bool        { return fi.f.Mode.IsDir() }
-func (fi fileInfo) Sys() any           { return fi.f.Sys }
