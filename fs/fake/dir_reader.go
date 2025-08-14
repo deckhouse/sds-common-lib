@@ -36,7 +36,7 @@ type DirReader struct {
 func newDirReader(file *File) *DirReader {
 	return &DirReader{
 		file: file,
-		sortedChildren: sortDir(file.Children, func(a, b *File) bool {
+		sortedChildren: sortDir(file.children, func(a, b *File) bool {
 			return a.name < b.name
 		}),
 	}
@@ -51,7 +51,7 @@ func (f *DirReader) ReadDir(n int) ([]fs.DirEntry, error) {
 	}
 
 	// Don't count "." and ".."
-	nChildren := len(dir.Children) - 2
+	nChildren := len(dir.children) - 2
 
 	if n <= 0 {
 		n = nChildren

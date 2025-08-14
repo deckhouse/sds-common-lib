@@ -38,6 +38,6 @@ func (fi fileInfo) Size() int64 {
 	return fi.f.fileSizer.Size()
 }
 func (fi fileInfo) Mode() fs.FileMode  { return fi.f.Mode() }
-func (fi fileInfo) ModTime() time.Time { return fi.f.ModTime }
+func (fi fileInfo) ModTime() time.Time { return fi.f.modTime }
 func (fi fileInfo) IsDir() bool        { return fi.f.Mode().IsDir() }
-func (fi fileInfo) Sys() any           { return fi.f.Sys }
+func (fi fileInfo) Sys() any           { return fi.f.sys }

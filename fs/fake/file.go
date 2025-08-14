@@ -32,11 +32,11 @@ type File struct {
 	name       string           // base name of the file
 	path       string           // full path of the file
 	mode       fs.FileMode      // file mode bits
-	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
-	ModTime    time.Time        // modification time
+	sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
+	modTime    time.Time        // modification time
 	LinkSource string           // symlink source (path to the file)
-	Parent     *File            // parent directory
-	Children   map[string]*File // children of the file (if the file is a directory)
+	parent     *File            // parent directory
+	children   map[string]*File // children of the file (if the file is a directory)
 
 	fileOpener fs.FileOpener
 	fileSizer  fs.FileSizer
@@ -58,10 +58,10 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 		return nil, fmt.Errorf("not a directory: %s", dir.name)
 	}
 
-	entries := make([]fs.DirEntry, 0, len(dir.Children)-2)
-	for child := range dir.Children {
+	entries := make([]fs.DirEntry, 0, len(dir.children)-2)
+	for child := range dir.children {
 		if child != "." && child != ".." {
-			entries = append(entries, dirEntry{dir.Children[child]})
+			entries = append(entries, dirEntry{dir.children[child]})
 		}
 	}
 
@@ -82,6 +82,10 @@ func (parent *File) CreateChildFile(name string, args ...any) (*File, error) {
 
 func (parent *File) CreateChildDir(name string) (*File, error) {
 	return parent.CreateChild(name, fs.ModeDir)
+}
+
+func (parent *File) GetChild(name string) *File {
+	return parent.children[name]
 }
 
 // Creates a new entry in the given directory
@@ -111,10 +115,10 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 	f := &File{
 		name:       name,
 		mode:       mode,       // NOTE: file permissions are currently not used by MockFs
-		ModTime:    time.Now(), // NOTE: file modification time is currently not randomized
+		modTime:    time.Now(), // NOTE: file modification time is currently not randomized
 		LinkSource: "",         // Configured later
-		Parent:     parent,
-		Children:   nil,
+		parent:     parent,
+		children:   nil,
 	}
 
 	unknownArgs := make(map[int]any, len(args))
@@ -167,7 +171,7 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 		return nil, err
 	}
 
-	f.Children = map[string]*File{
+	f.children = map[string]*File{
 		// NOTE: probably, it should be a special case
 		".":  f,
 		"..": parent,
@@ -177,7 +181,7 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 		path = name
 	} else {
 		path = filepath.Join(parent.Path(), name)
-		parent.Children[name] = f
+		parent.children[name] = f
 	}
 
 	f.path = path

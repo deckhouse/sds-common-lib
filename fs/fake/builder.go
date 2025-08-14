@@ -46,12 +46,12 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
 		return nil, fmt.Errorf("parent is not directory: %s", parentPath)
 	}
 
-	if _, exists := parent.Children[dirName]; exists {
+	if _, exists := parent.children[dirName]; exists {
 		return nil, fmt.Errorf("file exists: %s", path)
 	}
 
 	file, err := parent.CreateChild(dirName, mode)
-	file.Sys = &m.DefaultSys
+	file.sys = &m.DefaultSys
 	return file, err
 }
 

@@ -86,7 +86,7 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 
 	head, tail := extractFirstPathItem(relativePath)
 
-	child, ok := baseDir.Children[head]
+	child, ok := baseDir.children[head]
 	if !ok || child == nil {
 		return nil, fmt.Errorf("file not found: %s", head)
 	}
@@ -95,7 +95,7 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 		// This is the last segment of the path (file itself)
 		if followLink && child.Mode()&os.ModeSymlink != 0 {
 			// follow last symlink
-			return o.getFileRelative(child.Parent, child.LinkSource, true)
+			return o.getFileRelative(child.parent, child.LinkSource, true)
 		}
 
 		return child, nil
@@ -104,7 +104,7 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 	if child.Mode()&os.ModeSymlink != 0 {
 		// child.parent is not nil, because symlink can't be root
 		var err error
-		child, err = o.getFileRelative(child.Parent, child.LinkSource, true)
+		child, err = o.getFileRelative(child.parent, child.LinkSource, true)
 		if err != nil {
 			return nil, err
 		}
@@ -148,8 +148,8 @@ func (o *OS) Chown(name string, uid int, gid int) error {
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
-	file.Sys.Uid = uint32(uid)
-	file.Sys.Gid = uint32(gid)
+	file.sys.Uid = uint32(uid)
+	file.sys.Gid = uint32(gid)
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 	dir := curdir
 
 	for _, part := range parts {
-		child, ok := dir.Children[part]
+		child, ok := dir.children[part]
 		if !ok {
 			// create new directory
 			child, err = dir.CreateChild(part, os.ModeDir|perm)
