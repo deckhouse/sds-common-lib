@@ -18,7 +18,7 @@ limitations under the License.
 // range of interfaces from `fs` package.
 package fs
 
-//go:generate go tool mockgen -copyright_file ../hack/boilerplate.txt -write_source_comment -destination=mock/$GOFILE -source=$GOFILE
+//go:generate go tool mockgen -typed -package mock -copyright_file ../hack/boilerplate.txt -write_source_comment -destination=mock/$GOFILE -source=$GOFILE
 
 import (
 	"io"
