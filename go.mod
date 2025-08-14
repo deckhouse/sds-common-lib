@@ -1,6 +1,8 @@
 module github.com/deckhouse/sds-common-lib
 
-go 1.23.6
+go 1.24.5
+
+toolchain go1.24.6
 
 require (
 	github.com/fsnotify/fsnotify v1.8.0
@@ -9,6 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/stretchr/testify v1.10.0
+	go.uber.org/mock v0.5.2
 	k8s.io/apimachinery v0.32.3
 	sigs.k8s.io/controller-runtime v0.20.4
 )
@@ -54,8 +57,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.33.0 // indirect
 	go.opentelemetry.io/otel/trace v1.33.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
@@ -76,3 +81,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.5.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+tool go.uber.org/mock/mockgen
