@@ -57,7 +57,7 @@ func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	dir := f.File
 
 	if !dir.Mode.IsDir() {
-		return nil, toPathError(fmt.Errorf("not a directory: %s", dir.Name), fs.ReadDirOp, dir.Name)
+		return nil, toPathError(fmt.Errorf("not a directory: %s", dir.name), fs.ReadDirOp, dir.name)
 	}
 
 	// Don't count "." and ".."
@@ -69,7 +69,7 @@ func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 
 	if f.readDirOffset == 0 {
 		f.sortedChildren = sortDir(dir.Children, func(a, b *File) bool {
-			return a.Name < b.Name
+			return a.name < b.name
 		})
 	}
 
@@ -122,7 +122,7 @@ func (f *FileDescriptor) Close() error {
 }
 
 func (f *FileDescriptor) Name() string {
-	return f.File.Name
+	return f.File.name
 }
 
 func (f *FileDescriptor) Read(p []byte) (n int, err error) {

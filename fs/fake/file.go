@@ -30,7 +30,7 @@ import (
 
 // Fake File system entry
 type File struct {
-	Name       string           // base name of the file
+	name       string           // base name of the file
 	Path       string           // full path of the file
 	Mode       os.FileMode      // file mode bits
 	Sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
@@ -49,7 +49,7 @@ func (f *File) stat() (fs.FileInfo, error) {
 
 func (dir *File) readDir() ([]fs.DirEntry, error) {
 	if !dir.Mode.IsDir() {
-		return nil, fmt.Errorf("not a directory: %s", dir.Name)
+		return nil, fmt.Errorf("not a directory: %s", dir.name)
 	}
 
 	entries := make([]fs.DirEntry, 0, len(dir.Children)-2)
@@ -103,7 +103,7 @@ func createFile(parent *File, name string, mode os.FileMode, args ...any) (*File
 	}
 
 	f := &File{
-		Name:       name,
+		name:       name,
 		Mode:       mode,       // NOTE: file permissions are currently not used by MockFs
 		ModTime:    time.Now(), // NOTE: file modification time is currently not randomized
 		LinkSource: "",         // Configured later

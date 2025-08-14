@@ -30,7 +30,7 @@ func newFileInfo(f *File) fs.FileInfo {
 	return fileInfo{f: f}
 }
 
-func (fi fileInfo) Name() string { return fi.f.Name }
+func (fi fileInfo) Name() string { return fi.f.name }
 func (fi fileInfo) Size() int64 {
 	if fi.f.fileSizer == nil {
 		return 0

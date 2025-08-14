@@ -102,14 +102,15 @@ func TestFileName(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	file, err := fsys.Root.CreateChild("file", 0o644)
+	name := "file"
+
+	_, err = fsys.Root.CreateChild(name, 0o644)
 	assert.NoError(t, err)
 
-	fd, err := fsys.Open("/file")
+	fd, err := fsys.Open("/" + name)
 	assert.NoError(t, err)
 
-	name := fd.Name()
-	assert.Equal(t, file.Name, name)
+	assert.Equal(t, name, fd.Name())
 }
 
 // Positive: file closed (safe to call after close)
@@ -117,17 +118,17 @@ func TestFileNameClosed(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	file, err := fsys.Root.CreateChild("file", 0o644)
+	name := "file"
+	_, err = fsys.Root.CreateChild(name, 0o644)
 	assert.NoError(t, err)
 
-	fd, err := fsys.Open("/file")
+	fd, err := fsys.Open("/" + name)
 	assert.NoError(t, err)
 
 	err = fd.Close()
 	assert.NoError(t, err)
 
-	name := fd.Name()
-	assert.Equal(t, file.Name, name)
+	assert.Equal(t, name, fd.Name())
 }
 
 // ReadDir
@@ -145,21 +146,22 @@ func TestFileReadDir(t *testing.T) {
 
 	dir, err := fsys.Root.CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
-	f1, _ := dir.CreateChild("file1", 0)
-	f2, _ := dir.CreateChild("file2", 0)
-	f3, _ := dir.CreateChild("file3", 0)
-	f4, _ := dir.CreateChild("file4", 0)
+	names := []string{"file1", "file2", "file3", "file4"}
+	files := make([]*fake.File, len(names))
+	for i, name := range names {
+		f, _ := dir.CreateChild(name, 0)
+		files[i] = f
+	}
 
 	fd, err := fsys.Open("/dir")
 	assert.NoError(t, err)
 
 	entries, err := fd.ReadDir(0)
 	assert.NoError(t, err)
-	assert.Len(t, entries, 4)
-	assert.Equal(t, f1.Name, entries[0].Name())
-	assert.Equal(t, f2.Name, entries[1].Name())
-	assert.Equal(t, f3.Name, entries[2].Name())
-	assert.Equal(t, f4.Name, entries[3].Name())
+	assert.Len(t, entries, len(names))
+	for i := range names {
+		assert.Equal(t, names[i], entries[i].Name())
+	}
 }
 
 // Positive: read content of a directory by chunks
@@ -175,10 +177,11 @@ func TestFileReadDirChunks(t *testing.T) {
 
 	dir, err := fsys.Root.CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
-	f1, _ := dir.CreateChild("file1", 0)
-	f2, _ := dir.CreateChild("file2", 0)
-	f3, _ := dir.CreateChild("file3", 0)
-	f4, _ := dir.CreateChild("file4", 0)
+	names := []string{"file1", "file2", "file3", "file4"}
+	files := make([]*fake.File, len(names))
+	for i, name := range names {
+		files[i], _ = dir.CreateChild(name, 0)
+	}
 
 	fd, err := fsys.Open("/dir")
 	assert.NoError(t, err)
@@ -187,15 +190,15 @@ func TestFileReadDirChunks(t *testing.T) {
 	entries, err := fd.ReadDir(3)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 3)
-	assert.Equal(t, f1.Name, entries[0].Name())
-	assert.Equal(t, f2.Name, entries[1].Name())
-	assert.Equal(t, f3.Name, entries[2].Name())
+	assert.Equal(t, names[0], entries[0].Name())
+	assert.Equal(t, names[1], entries[1].Name())
+	assert.Equal(t, names[2], entries[2].Name())
 
 	// Chunk 2 (truncated)
 	entries, err = fd.ReadDir(3)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 1)
-	assert.Equal(t, f4.Name, entries[0].Name())
+	assert.Equal(t, names[3], entries[0].Name())
 
 	// Chunk 3 (EOF)
 	entries, err = fd.ReadDir(3)

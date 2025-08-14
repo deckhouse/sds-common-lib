@@ -27,7 +27,7 @@ type dirEntry struct {
 
 var _ fs.DirEntry = (*dirEntry)(nil)
 
-func (de dirEntry) Name() string               { return de.File.Name }
+func (de dirEntry) Name() string               { return de.File.name }
 func (de dirEntry) IsDir() bool                { return de.Mode.IsDir() }
 func (de dirEntry) Type() fs.FileMode          { return de.Mode.Type() }
 func (de dirEntry) Info() (fs.FileInfo, error) { return de.File.stat() }

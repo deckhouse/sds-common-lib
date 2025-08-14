@@ -40,8 +40,12 @@ func TestReadDirBasic(t *testing.T) {
 
 	dir, err := fsys.Root.CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
-	f1, _ := dir.CreateChild("file1", 0)
-	f2, _ := dir.CreateChild("file2", 0)
+
+	names := []string{"file1", "file2"}
+	files := make([]*fake.File, len(names))
+	for i, name := range names {
+		files[i], _ = dir.CreateChild(name, 0)
+	}
 
 	fd, err := fsys.Open("/dir")
 	assert.NoError(t, err)
@@ -49,8 +53,8 @@ func TestReadDirBasic(t *testing.T) {
 	entries, err := fd.ReadDir(0)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 2)
-	assert.Equal(t, f1.Name, entries[0].Name())
-	assert.Equal(t, f2.Name, entries[1].Name())
+	assert.Equal(t, names[0], entries[0].Name())
+	assert.Equal(t, names[1], entries[1].Name())
 }
 
 // Negative: file not found
