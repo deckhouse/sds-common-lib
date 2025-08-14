@@ -284,9 +284,8 @@ func TestGetFileSymlinkSimple(t *testing.T) {
 
 	target, err := fs.Root().CreateChild("target.txt", 0)
 	assert.NoError(t, err)
-	link, err := fs.Root().CreateChild("link.txt", os.ModeSymlink)
+	_, err = fs.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
-	link.LinkSource = "/target.txt"
 
 	got, err := fake.BuilderForOS(fs).GetFile("link.txt")
 	assert.NoError(t, err)
@@ -306,13 +305,11 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 	target, err := fs.Root().CreateChild("target.txt", 0)
 	assert.NoError(t, err)
 
-	link1, err := fs.Root().CreateChild("link1.txt", os.ModeSymlink)
+	_, err = fs.Root().CreateChild("link1.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
-	link1.LinkSource = "/target.txt"
 
-	link2, err := fs.Root().CreateChild("link2.txt", os.ModeSymlink)
+	_, err = fs.Root().CreateChild("link2.txt", os.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
 	assert.NoError(t, err)
-	link2.LinkSource = "/link1.txt"
 
 	got, err := fake.BuilderForOS(fs).GetFile("link2.txt")
 	assert.NoError(t, err)
@@ -336,9 +333,8 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create symlink /link that points to /bar
-	linkDir, err := fs.Root().CreateChild("link", os.ModeSymlink)
+	_, err = fs.Root().CreateChild("link", os.ModeSymlink, fake.LinkReader{Target: "/bar"})
 	assert.NoError(t, err)
-	linkDir.LinkSource = "/bar"
 
 	got, err := fake.BuilderForOS(fs).GetFile("link/foo")
 	assert.NoError(t, err)
@@ -367,9 +363,8 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Symlink /dir1/dir2/sym that points to ../target (relative to /dir1/dir2)
-	sym, err := dir2.CreateChild("sym", os.ModeSymlink)
+	_, err = dir2.CreateChild("sym", os.ModeSymlink, fake.LinkReader{Target: "../target"})
 	assert.NoError(t, err)
-	sym.LinkSource = "../target"
 
 	got, err := fake.BuilderForOS(fs).GetFile("dir1/dir2/sym")
 	assert.NoError(t, err)
@@ -393,9 +388,8 @@ func TestGetFileBrokenSymlink(t *testing.T) {
 	// /
 	// └── broken.txt -> /nonexistent
 
-	link, err := fs.Root().CreateChild("broken.txt", os.ModeSymlink)
+	_, err = fs.Root().CreateChild("broken.txt", os.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
 	assert.NoError(t, err)
-	link.LinkSource = "/nonexistent"
 
 	_, err = fake.BuilderForOS(fs).GetFile("broken.txt")
 	assert.Error(t, err)

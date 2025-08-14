@@ -17,6 +17,7 @@ limitations under the License.
 package fake
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -107,7 +108,16 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 		// This is the last segment of the path (file itself)
 		if followLink && child.Mode()&os.ModeSymlink != 0 {
 			// follow last symlink
-			return o.getFileRelative(child.parent, child.LinkSource, true)
+			if child.linkReader == nil {
+				return nil, fmt.Errorf("don't have link reader")
+			}
+
+			linkTarget, err := child.linkReader.ReadLink()
+			if err != nil {
+				return nil, err
+			}
+
+			return o.getFileRelative(child.parent, linkTarget, true)
 		}
 
 		return child, nil
@@ -116,7 +126,15 @@ func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink
 	if child.Mode()&os.ModeSymlink != 0 {
 		// child.parent is not nil, because symlink can't be root
 		var err error
-		child, err = o.getFileRelative(child.parent, child.LinkSource, true)
+		if child.linkReader == nil {
+			return nil, fmt.Errorf("don't have link reader")
+		}
+
+		linkTarget, err := child.linkReader.ReadLink()
+		if err != nil {
+			return nil, err
+		}
+		child, err = o.getFileRelative(child.parent, linkTarget, true)
 		if err != nil {
 			return nil, err
 		}
@@ -278,13 +296,12 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 	return nil
 }
 
-func (o *OS) Symlink(oldname, newname string) error {
-	link, err := BuilderForOS(o).CreateChild(newname, os.ModeSymlink)
+func (o *OS) Symlink(oldName, newName string) error {
+	_, err := BuilderForOS(o).CreateChild(newName, os.ModeSymlink, LinkReader{Target: oldName})
 	if err != nil {
 		return err
 	}
 
-	link.LinkSource = oldname
 	return nil
 }
 
@@ -298,5 +315,9 @@ func (o *OS) ReadLink(name string) (string, error) {
 		return "", toPathError(fmt.Errorf("not a symlink: %s", name), fs.ReadlinkOp, name)
 	}
 
-	return file.LinkSource, nil
+	if file.linkReader == nil {
+		return "", errors.ErrUnsupported
+	}
+
+	return file.linkReader.ReadLink()
 }

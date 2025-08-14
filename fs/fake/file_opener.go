@@ -25,7 +25,7 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-type fileOpener struct {
+type FileOpener struct {
 	ioReaderAt io.ReaderAt
 	ioWriterAt io.WriterAt
 
@@ -60,10 +60,10 @@ var (
 	NoDirReader = &struct{}{}
 )
 
-var _ fs.FileOpener = (*fileOpener)(nil)
+var _ fs.FileOpener = (*FileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
-func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
+func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 
 	if f.file.Mode().IsDir() {
 		if f.dirReader == nil && !f.disableDirReader {
@@ -144,8 +144,8 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	return &file, nil
 }
 
-func NewFileOpener(file *File, args ...any) (*fileOpener, error) {
-	var f fileOpener
+func NewFileOpener(file *File, args ...any) (*FileOpener, error) {
+	var f FileOpener
 	f.file = file
 
 	for i, arg := range args {

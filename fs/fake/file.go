@@ -29,17 +29,17 @@ import (
 
 // Fake File system entry
 type File struct {
-	name       string           // base name of the file
-	path       string           // full path of the file
-	mode       fs.FileMode      // file mode bits
-	sys        *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
-	modTime    time.Time        // modification time
-	LinkSource string           // symlink source (path to the file)
-	parent     *File            // parent directory
-	children   map[string]*File // children of the file (if the file is a directory)
+	name     string           // base name of the file
+	path     string           // full path of the file
+	mode     fs.FileMode      // file mode bits
+	sys      *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
+	modTime  time.Time        // modification time
+	parent   *File            // parent directory
+	children map[string]*File // children of the file (if the file is a directory)
 
 	fileOpener fs.FileOpener
 	fileSizer  fs.FileSizer
+	linkReader fs.LinkReader
 }
 
 func (f *File) Path() string {
@@ -113,12 +113,11 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 	}
 
 	f := &File{
-		name:       name,
-		mode:       mode,       // NOTE: file permissions are currently not used by MockFs
-		modTime:    time.Now(), // NOTE: file modification time is currently not randomized
-		LinkSource: "",         // Configured later
-		parent:     parent,
-		children:   nil,
+		name:     name,
+		mode:     mode,       // NOTE: file permissions are currently not used by MockFs
+		modTime:  time.Now(), // NOTE: file modification time is currently not randomized
+		parent:   parent,
+		children: nil,
 	}
 
 	unknownArgs := make(map[int]any, len(args))
@@ -137,6 +136,7 @@ func createFile(parent *File, name string, mode fs.FileMode, args ...any) (*File
 		err := errors.Join(
 			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.linkReader, arg, &known, newArgError),
 		)
 
 		if !known {

@@ -221,6 +221,69 @@ func (c *MockDirReaderReadDirCall) DoAndReturn(f func(int) ([]fs.DirEntry, error
 	return c
 }
 
+// MockLinkReader is a mock of LinkReader interface.
+type MockLinkReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockLinkReaderMockRecorder
+	isgomock struct{}
+}
+
+// MockLinkReaderMockRecorder is the mock recorder for MockLinkReader.
+type MockLinkReaderMockRecorder struct {
+	mock *MockLinkReader
+}
+
+// NewMockLinkReader creates a new mock instance.
+func NewMockLinkReader(ctrl *gomock.Controller) *MockLinkReader {
+	mock := &MockLinkReader{ctrl: ctrl}
+	mock.recorder = &MockLinkReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLinkReader) EXPECT() *MockLinkReaderMockRecorder {
+	return m.recorder
+}
+
+// ReadLink mocks base method.
+func (m *MockLinkReader) ReadLink() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadLink")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadLink indicates an expected call of ReadLink.
+func (mr *MockLinkReaderMockRecorder) ReadLink() *MockLinkReaderReadLinkCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadLink", reflect.TypeOf((*MockLinkReader)(nil).ReadLink))
+	return &MockLinkReaderReadLinkCall{Call: call}
+}
+
+// MockLinkReaderReadLinkCall wrap *gomock.Call
+type MockLinkReaderReadLinkCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockLinkReaderReadLinkCall) Return(arg0 string, arg1 error) *MockLinkReaderReadLinkCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockLinkReaderReadLinkCall) Do(f func() (string, error)) *MockLinkReaderReadLinkCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockLinkReaderReadLinkCall) DoAndReturn(f func() (string, error)) *MockLinkReaderReadLinkCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
 // MockFile is a mock of File interface.
 type MockFile struct {
 	ctrl     *gomock.Controller

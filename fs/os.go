@@ -32,6 +32,8 @@ const (
 	O_TRUNC  = os.O_TRUNC
 )
 
+type LinkError = os.LinkError
+
 // OS abstraction interface
 // interface with methods of [os] package to mockup
 type OS interface {

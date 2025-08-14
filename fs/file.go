@@ -88,6 +88,10 @@ type DirReader interface {
 	ReadDir(n int) ([]DirEntry, error)
 }
 
+type LinkReader interface {
+	ReadLink() (string, error)
+}
+
 var _ DirReader = (fs.ReadDirFile)(nil)
 
 // File abstraction interface

@@ -33,7 +33,7 @@ func BuilderForOS(os *OS) OSBuilder {
 }
 
 // Creates a new entry by the given path
-func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
+func (m OSBuilder) CreateChild(path string, mode os.FileMode, args ...any) (*File, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 
@@ -50,7 +50,7 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
 		return nil, fmt.Errorf("file exists: %s", path)
 	}
 
-	file, err := parent.CreateChild(dirName, mode)
+	file, err := parent.CreateChild(dirName, mode, args...)
 	file.sys = &m.defaultSys
 	return file, err
 }

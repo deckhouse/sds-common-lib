@@ -69,9 +69,8 @@ func TestLstatSymlink(t *testing.T) {
 	_, err = theOS.Root().CreateChild("a.txt", 0)
 	assert.NoError(t, err)
 
-	link, err := theOS.Root().CreateChild("link.txt", os.ModeSymlink)
+	_, err = theOS.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
 	assert.NoError(t, err)
-	link.LinkSource = "/a.txt"
 
 	info, err := theOS.Lstat("link.txt")
 	assert.NoError(t, err)
