@@ -81,6 +81,13 @@ type FileOpener interface {
 	OpenFile(flag int, perm FileMode) (File, error)
 }
 
+// Part of [fs.ReadDirFile] without [File]
+type DirReader interface {
+	ReadDir(n int) ([]DirEntry, error)
+}
+
+var _ DirReader = (fs.ReadDirFile)(nil)
+
 // File abstraction interface
 // Extends [fs.File] interface with additional methods
 // struct [os.File] actually implements this interface

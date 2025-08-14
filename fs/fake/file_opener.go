@@ -29,39 +29,41 @@ type fileOpener struct {
 	ioReaderAt io.ReaderAt
 	ioWriterAt io.WriterAt
 
-	ioWriter io.Writer
-	ioReader io.Reader
-	ioSeeker io.Seeker
-	ioCloser io.Closer
-
 	fileSizer fs.FileSizer
 
-	disableReaderAt bool
-	disableReader   bool
-	disableWriterAt bool
-	disableWriter   bool
-	disableSeeker   bool
-	disableSizer    bool
-	disableCloser   bool
+	disableReaderAt  bool
+	disableReader    bool
+	disableWriterAt  bool
+	disableWriter    bool
+	disableSeeker    bool
+	disableSizer     bool
+	disableCloser    bool
+	disableDirReader bool
 
 	file *File
+
+	ioWriter  io.Writer
+	ioReader  io.Reader
+	ioSeeker  io.Seeker
+	ioCloser  io.Closer
+	dirReader fs.DirReader
 }
 
 var (
-	ReadOnly  = &struct{}{}
-	WriteOnly = &struct{}{}
-	NoReader  = &struct{}{}
-	NoWriter  = &struct{}{}
-	NoSeeker  = &struct{}{}
-	NoSizer   = &struct{}{}
-	NoAt      = &struct{}{}
+	ReadOnly    = &struct{}{}
+	WriteOnly   = &struct{}{}
+	NoReader    = &struct{}{}
+	NoWriter    = &struct{}{}
+	NoSeeker    = &struct{}{}
+	NoSizer     = &struct{}{}
+	NoAt        = &struct{}{}
+	NoDirReader = &struct{}{}
 )
 
 var _ fs.FileOpener = (*fileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
 func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
-
 	canAddSeeker := f.ioSeeker == nil && !f.disableSeeker &&
 		f.ioReader == nil &&
 		f.ioWriter == nil &&
@@ -87,6 +89,10 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 		f.ioWriterAt = seeker
 	}
 
+	if f.dirReader == nil && !f.disableDirReader {
+		f.dirReader = newDirReader(f.file)
+	}
+
 	canAddCloser := f.ioCloser == nil && !f.disableCloser
 	if canAddCloser {
 		args := []any{
@@ -95,6 +101,7 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 			f.ioWriter,
 			f.ioReader,
 			f.ioSeeker,
+			f.dirReader,
 		}
 		args = slices.DeleteFunc(args, func(arg any) bool {
 			return arg == nil
@@ -106,8 +113,7 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 		}
 	}
 
-	var file FileDescriptor
-	file.File = f.file
+	file := newOpenedFile(f.file)
 	file.isOpen = true
 	if !f.disableCloser {
 		file.ioCloser = f.ioCloser
@@ -130,6 +136,9 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	if !f.disableWriterAt {
 		file.ioWriterAt = f.ioWriterAt
 	}
+	if !f.disableDirReader {
+		file.dirReader = f.dirReader
+	}
 
 	return &file, nil
 }
@@ -138,29 +147,33 @@ func NewFileOpener(file *File, args ...any) (*fileOpener, error) {
 	var f fileOpener
 	f.file = file
 	for i, arg := range args {
-		if arg == ReadOnly {
+		switch arg {
+		case ReadOnly:
 			f.disableWriter = true
 			f.disableWriterAt = true
 			break
-		} else if arg == WriteOnly {
+		case WriteOnly:
 			f.disableReader = true
 			f.disableReaderAt = true
 			break
-		} else if arg == NoSeeker {
+		case NoSeeker:
 			f.disableSeeker = true
 			break
-		} else if arg == NoSizer {
+		case NoSizer:
 			f.disableSizer = true
 			break
-		} else if arg == NoReader {
+		case NoReader:
 			f.disableReader = true
 			break
-		} else if arg == NoWriter {
+		case NoWriter:
 			f.disableWriter = true
 			break
-		} else if arg == NoAt {
+		case NoAt:
 			f.disableReaderAt = true
 			f.disableWriterAt = true
+			break
+		case NoDirReader:
+			f.disableDirReader = true
 			break
 		}
 
@@ -170,12 +183,12 @@ func NewFileOpener(file *File, args ...any) (*fileOpener, error) {
 		}
 
 		err := errors.Join(
-			tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
+			// tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
+			// tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.ioReaderAt, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.ioWriterAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
+			// tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
+			// tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 		)
 

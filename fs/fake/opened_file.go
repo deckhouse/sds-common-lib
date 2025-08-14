@@ -18,9 +18,7 @@ package fake
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"sort"
 
 	"github.com/deckhouse/sds-common-lib/fs"
 )
@@ -28,9 +26,9 @@ import (
 // FileDescriptor descriptor ("opened FileDescriptor")
 type FileDescriptor struct {
 	*File
-	isOpen         bool
-	readDirOffset  int
-	sortedChildren []*File // Cached dir entries for ReadDir
+	isOpen bool
+
+	dirReader fs.DirReader
 
 	ioReaderAt io.ReaderAt
 	ioWriterAt io.WriterAt
@@ -45,63 +43,20 @@ type FileDescriptor struct {
 
 var _ fs.File = (*FileDescriptor)(nil)
 
-func newOpenedFile(entry *File) *FileDescriptor {
-	return &FileDescriptor{File: entry, isOpen: true, readDirOffset: 0}
+func newOpenedFile(entry *File) FileDescriptor {
+	return FileDescriptor{File: entry, isOpen: true}
 }
-
-// =====================
-// `fsext.File` interface implementation for `Fd`
-// =====================
 
 func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
-	dir := f.File
-
-	if !dir.Mode().IsDir() {
-		return nil, toPathError(fmt.Errorf("not a directory: %s", dir.name), fs.ReadDirOp, dir.name)
+	if !f.isOpen {
+		return nil, fs.ErrClosed
 	}
 
-	// Don't count "." and ".."
-	nChildren := len(dir.Children) - 2
-
-	if n == 0 {
-		n = nChildren
+	if f.dirReader == nil {
+		return nil, errors.ErrUnsupported
 	}
 
-	if f.readDirOffset == 0 {
-		f.sortedChildren = sortDir(dir.Children, func(a, b *File) bool {
-			return a.name < b.name
-		})
-	}
-
-	// Handle OEF
-	if f.readDirOffset >= len(f.sortedChildren) {
-		f.sortedChildren = nil // we don't need it anymore so free memory
-		return []fs.DirEntry{}, io.EOF
-	}
-
-	// Take n children starting from offset
-	entries := make([]fs.DirEntry, 0, n)
-	for i := 0; i < n && f.readDirOffset < len(f.sortedChildren); i++ {
-		entries = append(entries, dirEntry{f.sortedChildren[f.readDirOffset]})
-		f.readDirOffset++
-	}
-
-	return entries, nil
-}
-
-func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
-	slice := make([]*File, 0, len(dict)-2)
-	for file := range dict {
-		if file != "." && file != ".." {
-			slice = append(slice, dict[file])
-		}
-	}
-
-	sort.Slice(slice, func(i, j int) bool {
-		return comp(slice[i], slice[j])
-	})
-
-	return slice
+	return f.dirReader.ReadDir(n)
 }
 
 func (f *FileDescriptor) Stat() (fs.FileInfo, error) {

@@ -28,6 +28,7 @@ var _ io.ReaderAt = (*Closer)(nil)
 var _ io.WriterAt = (*Closer)(nil)
 var _ io.Seeker = (*Closer)(nil)
 var _ io.ReadWriteCloser = (*Closer)(nil)
+var _ fs.DirReader = (*Closer)(nil)
 
 type Closer struct {
 	closed bool
@@ -39,6 +40,8 @@ type Closer struct {
 	ioReader io.Reader
 	ioSeeker io.Seeker
 	ioCloser io.Closer
+
+	dirReader fs.DirReader
 }
 
 func NewCloser(args ...any) (*Closer, error) {
@@ -56,6 +59,7 @@ func NewCloser(args ...any) (*Closer, error) {
 			tryCastAndSetArgument(&c.ioReader, arg, &known, newArgError),
 			tryCastAndSetArgument(&c.ioSeeker, arg, &known, newArgError),
 			tryCastAndSetArgument(&c.ioCloser, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.dirReader, arg, &known, newArgError),
 		)
 
 		if err != nil {
@@ -67,6 +71,19 @@ func NewCloser(args ...any) (*Closer, error) {
 		}
 	}
 	return &c, nil
+}
+
+// ReadDir implements fs.DirReader.
+func (c *Closer) ReadDir(n int) ([]fs.DirEntry, error) {
+	if c.closed {
+		return nil, fs.ErrClosed
+	}
+
+	if c.dirReader == nil {
+		return nil, errors.ErrUnsupported
+	}
+
+	return c.dirReader.ReadDir(n)
 }
 
 // Seek implements io.Seeker.
