@@ -36,16 +36,16 @@ func TestChdir(t *testing.T) {
 	// /
 	// └── a
 
-	dirA, err := fsys.Root.CreateChild("a", os.ModeDir)
+	dirA, err := fsys.Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")
 	assert.NoError(t, err)
 
-	assert.Equal(t, fsys.CurDir, dirA)
+	assert.Equal(t, fsys.GetWdFile(), dirA)
 
 	// Negative: chdir to non-dir
-	_, err = fsys.Root.CreateChild("file.txt", 0)
+	_, err = fsys.Root().CreateChild("file.txt", 0)
 	assert.NoError(t, err)
 	err = fsys.Chdir("file.txt")
 	assert.Error(t, err)
@@ -74,7 +74,7 @@ func TestGetwd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "/", wd, "Working directory is wrong")
 
-	_, err = fsys.Root.CreateChild("a", os.ModeDir)
+	_, err = fsys.Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")

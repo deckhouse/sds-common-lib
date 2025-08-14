@@ -37,7 +37,7 @@ func TestMkdirAbsolutePathInSubdir(t *testing.T) {
 	// └── a
 	//     └── dir1
 
-	_, err = fsys.Root.CreateChild("a", os.ModeDir)
+	_, err = fsys.Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
@@ -72,7 +72,7 @@ func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
 	// └── a
 	//     └── dir1
 
-	_, err = fsys.Root.CreateChild("a", os.ModeDir)
+	_, err = fsys.Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	// Mkdir in /a
@@ -97,7 +97,7 @@ func TestMkdirNonDirectory(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root.CreateChild("a", 0)
+	_, err = fsys.Root().CreateChild("a", 0)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/file.txt", 0o755)
@@ -109,7 +109,7 @@ func TestMkdirDirectoryExists(t *testing.T) {
 	fsys, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fsys.Root.CreateChild("dir1", os.ModeDir)
+	_, err = fsys.Root().CreateChild("dir1", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/dir1", 0o755)

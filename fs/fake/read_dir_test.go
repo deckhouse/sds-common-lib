@@ -38,7 +38,7 @@ func TestReadDirBasic(t *testing.T) {
 	//     ├── file1
 	//     └── file2
 
-	dir, err := fsys.Root.CreateChild("dir", os.ModeDir)
+	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 
 	names := []string{"file1", "file2"}

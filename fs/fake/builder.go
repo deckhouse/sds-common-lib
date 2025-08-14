@@ -51,13 +51,13 @@ func (m OSBuilder) CreateChild(path string, mode os.FileMode) (*File, error) {
 	}
 
 	file, err := parent.CreateChild(dirName, mode)
-	file.sys = &m.DefaultSys
+	file.sys = &m.defaultSys
 	return file, err
 }
 
 // Returns the File object by the given relative or absolute path
 // Flowing symlinks
 func (m OSBuilder) GetFile(path string) (FileBuilder, error) {
-	file, err := m.OS.getFileRelative(m.OS.CurDir, path, true)
+	file, err := m.OS.getFileRelative(m.OS.wd, path, true)
 	return file, err
 }

@@ -28,9 +28,9 @@ import (
 
 // In-memory implementation of [fsapi.OS]
 type OS struct {
-	Root       File           // root directory
-	CurDir     *File          // current directory
-	DefaultSys syscall.Stat_t // default linux-specific Stat for all new files
+	root       File           // root directory
+	wd         *File          // current directory
+	defaultSys syscall.Stat_t // default linux-specific Stat for all new files
 }
 
 var _ fs.OS = (*OS)(nil)
@@ -42,17 +42,29 @@ func NewOS(rootPath string) (*OS, error) {
 	}
 
 	fs := OS{
-		Root: *root,
+		root: *root,
 	}
-	fs.CurDir = &fs.Root
+	fs.wd = &fs.root
 
 	return &fs, err
+}
+
+func (o *OS) Root() *File {
+	return &o.root
+}
+
+func (o *OS) GetWdFile() *File {
+	return o.wd
+}
+
+func (o *OS) SetWdFile(f *File) {
+	o.wd = f
 }
 
 func (o *OS) MakeRelativePath(curDir *File, path string) (*File, string, error) {
 	if filepath.IsAbs(path) {
 		var err error
-		curDir = &o.Root
+		curDir = &o.root
 		path, err = filepath.Rel(curDir.Path(), path)
 		if err != nil {
 			return nil, "", err
@@ -134,7 +146,7 @@ func toPathError(err error, op fs.Op, path string) error {
 
 // Chmod implements fsext.OS.
 func (o *OS) Chmod(name string, mode fs.FileMode) error {
-	file, err := o.getFileRelative(o.CurDir, name, false)
+	file, err := o.getFileRelative(o.wd, name, false)
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
@@ -144,7 +156,7 @@ func (o *OS) Chmod(name string, mode fs.FileMode) error {
 
 // Chown implements fsext.OS.
 func (o *OS) Chown(name string, uid int, gid int) error {
-	file, err := o.getFileRelative(o.CurDir, name, false)
+	file, err := o.getFileRelative(o.wd, name, false)
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
@@ -195,7 +207,7 @@ func (o *OS) Stat(name string) (fs.FileInfo, error) {
 }
 
 func (o *OS) Lstat(name string) (fs.FileInfo, error) {
-	file, err := o.getFileRelative(o.CurDir, name, false)
+	file, err := o.getFileRelative(o.wd, name, false)
 	if err != nil {
 		return nil, toPathError(err, fs.LstatOp, name)
 	}
@@ -220,16 +232,16 @@ func (o *OS) Chdir(dir string) error {
 	if !f.Mode().IsDir() {
 		return toPathError(fmt.Errorf("not a directory: %s", dir), fs.ChDirOp, dir)
 	}
-	o.CurDir = f
+	o.wd = f
 	return nil
 }
 
 func (o *OS) Getwd() (string, error) {
-	if o.CurDir == nil {
+	if o.wd == nil {
 		// Mock invariant violation
 		panic("current directory is not set")
 	}
-	return o.CurDir.Path(), nil
+	return o.wd.Path(), nil
 }
 
 func (o *OS) Mkdir(name string, perm os.FileMode) error {
@@ -242,7 +254,7 @@ func (o *OS) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (o *OS) MkdirAll(path string, perm os.FileMode) error {
-	curdir, p, err := o.MakeRelativePath(o.CurDir, path)
+	curdir, p, err := o.MakeRelativePath(o.wd, path)
 	if err != nil {
 		return err
 	}
@@ -277,7 +289,7 @@ func (o *OS) Symlink(oldname, newname string) error {
 }
 
 func (o *OS) ReadLink(name string) (string, error) {
-	file, err := o.getFileRelative(o.CurDir, name, false)
+	file, err := o.getFileRelative(o.wd, name, false)
 	if err != nil {
 		return "", err
 	}

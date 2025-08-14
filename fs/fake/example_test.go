@@ -68,7 +68,7 @@ func TestReadsFile(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Prepare fake filesystem
-	fooDir, err := fsys.Root.CreateChild("foo", os.ModeDir)
+	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
 	assert.NoError(t, err)
 
 	_, err = fooDir.CreateChild("bar", 0, fake.RWContentFromString("Hello, world!"))
@@ -84,7 +84,7 @@ func TestReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Prepare fake filesystem
-	fooDir, err := fsys.Root.CreateChild("foo", os.ModeDir)
+	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
 	assert.NoError(t, err)
 
 	_, err = fooDir.CreateChildFile("bar", fake.NewRWContent())
