@@ -56,13 +56,16 @@ type ConfigFileWatcherOptions struct {
 
 type UpdateConfigDataFunc func(data map[string]string) error
 
-// TODO sac reload latency to avoid duplicate reload (after test in k8s)
-
 // Starts a goroutine, which will monitor and periodically reload the config.
 // Call blocks until first attempt to reload will get the result.
 // It's panic-free and error-free, all errors will be reported to [ConfigFileWatcherOptions.OwnLogger]
 // Cancelation of the context will lead to graceful shutdown of the goroutine.
-func RunConfigFileWatcher(
+func EnableConfigReload(ctx context.Context, opts *ConfigFileWatcherOptions) {
+	runConfigFileWatcher(ctx, UpdateConfigData, opts)
+}
+
+// TODO sac reload latency to avoid duplicate reload (after test in k8s)
+func runConfigFileWatcher(
 	ctx context.Context,
 	update UpdateConfigDataFunc,
 	opts *ConfigFileWatcherOptions,
@@ -71,9 +74,10 @@ func RunConfigFileWatcher(
 
 	// own logger
 	if opts != nil {
-		if log = opts.OwnLogger; log == nil {
-			log = slog.Default()
-		}
+		log = opts.OwnLogger
+	}
+	if log == nil {
+		log = slog.Default()
 	}
 
 	// polling loop, which should normally be replaced with loop in [watchConfig]
@@ -187,10 +191,12 @@ func watchConfig(
 			log.Debug("finished watching 'file'", "file", filePath)
 			return nil
 		case <-statusTicker.C:
-			if len(fw.WatchList()) == 0 {
+			watchList := fw.WatchList()
+			if len(watchList) == 0 {
 				// path was removed (e.g. due to file move) -> want watcher reload
 				return errWatcherSubscriptionLost
 			}
+
 			if !missedEvents {
 				continue
 			}
