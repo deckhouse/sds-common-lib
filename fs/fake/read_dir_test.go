@@ -42,7 +42,7 @@ func TestReadDirBasic(t *testing.T) {
 	assert.NoError(t, err)
 
 	names := []string{"file1", "file2"}
-	files := make([]*fake.File, len(names))
+	files := make([]*fake.Entry, len(names))
 	for i, name := range names {
 		files[i], err = dir.CreateChild(name)
 		assert.NoError(t, err)

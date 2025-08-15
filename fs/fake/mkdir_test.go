@@ -42,7 +42,7 @@ func TestMkdirAbsolutePathInSubdir(t *testing.T) {
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fake.BuilderForOS(fsys).GetFile("/a/dir1")
+	d1, err := fake.BuilderFor(fsys).GetFile("/a/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode().IsDir(), "dir1 should be directory")
 }
@@ -58,7 +58,7 @@ func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
 	// Mkdir in root
 	err = fsys.Mkdir("dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fake.BuilderForOS(fsys).GetFile("/dir1")
+	d1, err := fake.BuilderFor(fsys).GetFile("/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode().IsDir(), "dir1 should be directory")
 }
@@ -78,7 +78,7 @@ func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
 	// Mkdir in /a
 	err = fsys.Mkdir("a/dir1", 0o755)
 	assert.NoError(t, err)
-	d1, err := fake.BuilderForOS(fsys).GetFile("/a/dir1")
+	d1, err := fake.BuilderFor(fsys).GetFile("/a/dir1")
 	assert.NoError(t, err)
 	assert.True(t, d1.Mode().IsDir(), "dir1 should be directory")
 }
@@ -125,15 +125,15 @@ func TestMkdirAllRelativePathWithRoot(t *testing.T) {
 	err = fsys.MkdirAll("foo/bar/baz", 0o755)
 	assert.NoError(t, err)
 
-	foo, err := fake.BuilderForOS(fsys).GetFile("/foo")
+	foo, err := fake.BuilderFor(fsys).GetFile("/foo")
 	assert.NoError(t, err)
 	assert.True(t, foo.Mode().IsDir(), "foo should be directory created via MkdirAll")
 
-	bar, err := fake.BuilderForOS(fsys).GetFile("/foo/bar")
+	bar, err := fake.BuilderFor(fsys).GetFile("/foo/bar")
 	assert.NoError(t, err)
 	assert.True(t, bar.Mode().IsDir(), "bar should be directory created via MkdirAll")
 
-	baz, err := fake.BuilderForOS(fsys).GetFile("/foo/bar/baz")
+	baz, err := fake.BuilderFor(fsys).GetFile("/foo/bar/baz")
 	assert.NoError(t, err)
 	assert.True(t, baz.Mode().IsDir(), "baz should be directory created via MkdirAll")
 }

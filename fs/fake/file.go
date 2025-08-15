@@ -28,33 +28,33 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-// Fake File system entry
-type File struct {
-	name     string           // base name of the file
-	path     string           // full path of the file
-	mode     fs.FileMode      // file mode bits
-	sys      *syscall.Stat_t  // linux-specific Stat. Primary used for GID and UID
-	modTime  time.Time        // modification time
-	parent   *File            // parent directory
-	children map[string]*File // children of the file (if the file is a directory)
+// Fake Entry system entry
+type Entry struct {
+	name     string            // base name of the file
+	path     string            // full path of the file
+	mode     fs.FileMode       // file mode bits
+	sys      *syscall.Stat_t   // linux-specific Stat. Primary used for GID and UID
+	modTime  time.Time         // modification time
+	parent   *Entry            // parent directory
+	children map[string]*Entry // children of the file (if the file is a directory)
 
 	fileOpener fs.FileOpener
 	fileSizer  fs.FileSizer
 	linkReader fs.LinkReader
 }
 
-func (f *File) Path() string {
+func (f *Entry) Path() string {
 	return f.path
 }
-func (f *File) Mode() fs.FileMode {
+func (f *Entry) Mode() fs.FileMode {
 	return f.mode
 }
 
-func (f *File) stat() (fs.FileInfo, error) {
+func (f *Entry) stat() (fs.FileInfo, error) {
 	return newFileInfo(f), nil
 }
 
-func (dir *File) readDir() ([]fs.DirEntry, error) {
+func (dir *Entry) readDir() ([]fs.DirEntry, error) {
 	if !dir.mode.IsDir() {
 		return nil, fmt.Errorf("not a directory: %s", dir.name)
 	}
@@ -69,15 +69,16 @@ func (dir *File) readDir() ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-func NewRootFile(path string) (*File, error) {
-	return createFile(nil, path, fs.ModeDir)
+func NewRootFile(path string, args ...any) (*Entry, error) {
+	args = append(args, fs.ModeDir)
+	return createFile(nil, path, args...)
 }
 
-func (parent *File) CreateChild(name string, args ...any) (*File, error) {
+func (parent *Entry) CreateChild(name string, args ...any) (*Entry, error) {
 	return createFile(parent, name, args...)
 }
 
-func (parent *File) GetChild(name string) *File {
+func (parent *Entry) GetChild(name string) *Entry {
 	return parent.children[name]
 }
 
@@ -86,7 +87,7 @@ func (parent *File) GetChild(name string) *File {
 // `name` name of the new entry
 // `args` could be [fs.FileMode], [fs.FileOpener], [fs.FileSizer], [fs.LinkReader]
 // Returns the new entry and an error if any
-func createFile(parent *File, name string, args ...any) (*File, error) {
+func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 	var path string
 
 	if name == "" {
@@ -105,9 +106,9 @@ func createFile(parent *File, name string, args ...any) (*File, error) {
 		return nil, errors.New("file name can't contain '/'")
 	}
 
-	f := &File{
+	f := &Entry{
 		name:     name,
-		mode:     0,          // NOTE: file permissions are currently not used by MockFs
+		mode:     0,          // NOTE: file permissions are currently not used
 		modTime:  time.Now(), // NOTE: file modification time is currently not randomized
 		parent:   parent,
 		children: nil,
@@ -121,6 +122,8 @@ func createFile(parent *File, name string, args ...any) (*File, error) {
 
 	var hasMode bool
 
+	var files []*File
+
 	for i, arg := range args {
 		newArgError := func() error {
 			return newArgError(i, arg)
@@ -129,27 +132,44 @@ func createFile(parent *File, name string, args ...any) (*File, error) {
 		var known bool
 		var modeFound bool
 		var mode fs.FileMode
+
+		var fileFound bool
+		var file *File
+
 		err := errors.Join(
+			tryCastAndSetArgument(&file, arg, &fileFound, newArgError),
 			tryCastAndSetArgument(&mode, arg, &modeFound, newArgError),
 			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.linkReader, arg, &known, newArgError),
 		)
 
+		if err != nil {
+			return nil, err
+		}
+
 		if modeFound {
-			if hasMode {
+			if hasMode && mode != f.mode {
 				return nil, fmt.Errorf("%v already set: %w", reflect.TypeOf(mode), newArgError())
 			}
 			modeFound = true
 			f.mode = mode
+			known = true
+		}
+
+		if fileFound {
+			files = append(files, file)
+			known = true
+			if modeFound && f.mode != fs.ModeDir {
+				return nil, fmt.Errorf("child file found but mode is %v expected %v: %w", mode, fs.ModeDir, newArgError())
+			}
+			f.mode = fs.ModeDir
+			modeFound = true
+
 		}
 
 		if !known && !modeFound {
 			unknownArgs[i] = arg
-		}
-
-		if err != nil {
-			return nil, err
 		}
 	}
 
@@ -176,7 +196,7 @@ func createFile(parent *File, name string, args ...any) (*File, error) {
 		return nil, err
 	}
 
-	f.children = map[string]*File{
+	f.children = map[string]*Entry{
 		// NOTE: probably, it should be a special case
 		".":  f,
 		"..": parent,
@@ -188,7 +208,15 @@ func createFile(parent *File, name string, args ...any) (*File, error) {
 		path = filepath.Join(parent.Path(), name)
 		parent.children[name] = f
 	}
-
 	f.path = path
+
+	if len(files) > 0 {
+		for _, file := range files {
+			_, err := createFile(f, file.name, file.args...)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return f, nil
 }

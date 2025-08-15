@@ -40,7 +40,7 @@ type FileOpener struct {
 	disableCloser    bool
 	disableDirReader bool
 
-	file *File
+	file *Entry
 
 	ioWriter  io.Writer
 	ioReader  io.Reader
@@ -144,7 +144,7 @@ func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	return &file, nil
 }
 
-func NewFileOpener(file *File, args ...any) (*FileOpener, error) {
+func NewFileOpener(file *Entry, args ...any) (*FileOpener, error) {
 	var f FileOpener
 	f.file = file
 

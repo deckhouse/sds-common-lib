@@ -27,16 +27,16 @@ import (
 var _ fs.DirReader = (*DirReader)(nil)
 
 type DirReader struct {
-	file *File
+	file *Entry
 
 	readDirOffset  int
-	sortedChildren []*File // Cached dir entries for ReadDir
+	sortedChildren []*Entry // Cached dir entries for ReadDir
 }
 
-func newDirReader(file *File) *DirReader {
+func newDirReader(file *Entry) *DirReader {
 	return &DirReader{
 		file: file,
-		sortedChildren: sortDir(file.children, func(a, b *File) bool {
+		sortedChildren: sortDir(file.children, func(a, b *Entry) bool {
 			return a.name < b.name
 		}),
 	}
@@ -73,8 +73,8 @@ func (f *DirReader) ReadDir(n int) ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-func sortDir(dict map[string]*File, comp func(a, b *File) bool) []*File {
-	slice := make([]*File, 0, len(dict)-2)
+func sortDir(dict map[string]*Entry, comp func(a, b *Entry) bool) []*Entry {
+	slice := make([]*Entry, 0, len(dict)-2)
 	for file := range dict {
 		if file != "." && file != ".." {
 			slice = append(slice, dict[file])

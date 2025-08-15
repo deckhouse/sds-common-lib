@@ -147,7 +147,7 @@ func TestFileReadDir(t *testing.T) {
 	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
-	files := make([]*fake.File, len(names))
+	files := make([]*fake.Entry, len(names))
 	for i, name := range names {
 		f, err := dir.CreateChild(name)
 		assert.NoError(t, err)
@@ -179,7 +179,7 @@ func TestFileReadDirChunks(t *testing.T) {
 	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
-	files := make([]*fake.File, len(names))
+	files := make([]*fake.Entry, len(names))
 	for i, name := range names {
 		files[i], _ = dir.CreateChild(name)
 	}

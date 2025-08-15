@@ -23,10 +23,10 @@ import (
 
 // Internal struct implementing fs.FileInfo
 type fileInfo struct {
-	f *File
+	f *Entry
 }
 
-func newFileInfo(f *File) fs.FileInfo {
+func newFileInfo(f *Entry) fs.FileInfo {
 	return fileInfo{f: f}
 }
 

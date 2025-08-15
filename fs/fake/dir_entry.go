@@ -22,7 +22,7 @@ import (
 
 // dirEntry implements fs.DirEntry backed by File
 type dirEntry struct {
-	file *File
+	file *Entry
 }
 
 var _ fs.DirEntry = (*dirEntry)(nil)

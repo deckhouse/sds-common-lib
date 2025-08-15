@@ -29,15 +29,15 @@ import (
 
 // In-memory implementation of [fs.OS]
 type OS struct {
-	root       File           // root directory
-	wd         *File          // current directory
+	root       Entry          // root directory
+	wd         *Entry         // current directory
 	defaultSys syscall.Stat_t // default linux-specific Stat for all new files
 }
 
 var _ fs.OS = (*OS)(nil)
 
-func NewOS(rootPath string) (*OS, error) {
-	root, err := NewRootFile(rootPath)
+func NewOS(rootPath string, args ...any) (*OS, error) {
+	root, err := NewRootFile(rootPath, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,19 +50,19 @@ func NewOS(rootPath string) (*OS, error) {
 	return &fs, err
 }
 
-func (o *OS) Root() *File {
+func (o *OS) Root() *Entry {
 	return &o.root
 }
 
-func (o *OS) GetWdFile() *File {
+func (o *OS) GetWdFile() *Entry {
 	return o.wd
 }
 
-func (o *OS) SetWdFile(f *File) {
+func (o *OS) SetWdFile(f *Entry) {
 	o.wd = f
 }
 
-func (o *OS) MakeRelativePath(curDir *File, path string) (*File, string, error) {
+func (o *OS) MakeRelativePath(curDir *Entry, path string) (*Entry, string, error) {
 	if filepath.IsAbs(path) {
 		var err error
 		curDir = &o.root
@@ -85,7 +85,7 @@ func (o *OS) MakeRelativePath(curDir *File, path string) (*File, string, error) 
 // └── file2
 // followLink = true:  /dir1/file1 -> /file2 (regular file)
 // followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
-func (o *OS) getFileRelative(baseDir *File, relativePath string, followLink bool) (*File, error) {
+func (o *OS) getFileRelative(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
 	baseDir, relativePath, err := o.MakeRelativePath(baseDir, relativePath)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (o *OS) getFileRelative(baseDir *File, relativePath string, followLink bool
 	return o.getEntryRelativeImpl(baseDir, relativePath, followLink)
 }
 
-func (o *OS) getEntryRelativeImpl(baseDir *File, relativePath string, followLink bool) (*File, error) {
+func (o *OS) getEntryRelativeImpl(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
 	// p is normalized relative path from curDir, no extra checks are needed
 
 	head, tail := extractFirstPathItem(relativePath)
@@ -198,15 +198,15 @@ func (o *OS) Create(name string) (fs.File, error) {
 
 // OpenFile implements fsext.OS.
 func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
-	var file *File
+	var file *Entry
 	var err error
 	if (flag & fs.O_CREATE) != 0 {
-		file, err = BuilderForOS(o).CreateChild(name)
+		file, err = BuilderFor(o).CreateFile(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		file, err = BuilderForOS(o).GetFile(name)
+		file, err = BuilderFor(o).GetFile(name)
 		if err != nil {
 			return nil, toPathError(err, fs.OpenOp, name)
 		}
@@ -216,7 +216,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 }
 
 func (o *OS) Stat(name string) (fs.FileInfo, error) {
-	f, err := BuilderForOS(o).GetFile(name)
+	f, err := BuilderFor(o).GetFile(name)
 	if err != nil {
 		return nil, toPathError(err, fs.StatOp, name)
 	}
@@ -234,7 +234,7 @@ func (o *OS) Lstat(name string) (fs.FileInfo, error) {
 }
 
 func (o *OS) ReadDir(name string) ([]fs.DirEntry, error) {
-	file, err := BuilderForOS(o).GetFile(name)
+	file, err := BuilderFor(o).GetFile(name)
 	if err != nil {
 		return nil, toPathError(err, fs.ReadDirOp, name)
 	}
@@ -243,7 +243,7 @@ func (o *OS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (o *OS) Chdir(dir string) error {
-	f, err := BuilderForOS(o).GetFile(dir)
+	f, err := BuilderFor(o).GetFile(dir)
 	if err != nil {
 		return toPathError(err, fs.ChDirOp, dir)
 	}
@@ -263,7 +263,7 @@ func (o *OS) Getwd() (string, error) {
 }
 
 func (o *OS) Mkdir(name string, perm os.FileMode) error {
-	_, err := BuilderForOS(o).CreateChild(name, os.ModeDir|perm)
+	_, err := BuilderFor(o).CreateFile(name, os.ModeDir|perm)
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func (o *OS) Symlink(oldName, newName string) error {
-	_, err := BuilderForOS(o).CreateChild(newName, os.ModeSymlink, LinkReader{Target: oldName})
+	_, err := BuilderFor(o).CreateFile(newName, os.ModeSymlink, LinkReader{Target: oldName})
 	if err != nil {
 		return err
 	}

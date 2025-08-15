@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// This example shows how to use MockFS to test file system operations
+// This example shows how to use [fake] to test file system operations
 
 package fake_test
 
@@ -64,14 +64,12 @@ func WritesFile(fs fs.OS, text string) error {
 
 // Positive: read file
 func TestReadsFile(t *testing.T) {
-	fsys, err := fake.NewOS("/")
-	assert.NoError(t, err)
-
-	// Prepare fake filesystem
-	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
-	assert.NoError(t, err)
-
-	_, err = fooDir.CreateChild("bar", fake.RWContentFromString("Hello, world!"))
+	fsys, err := fake.NewBuilder(
+		"/",
+		fake.NewFile(
+			"foo",
+			fake.NewFile("bar", fake.RWContentFromString("Hello, world!")),
+		)).Build()
 	assert.NoError(t, err)
 
 	res, err := ReadsFile(fsys)
@@ -80,14 +78,8 @@ func TestReadsFile(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	fsys, err := fake.NewOS("/")
-	assert.NoError(t, err)
-
-	// Prepare fake filesystem
-	fooDir, err := fsys.Root().CreateChild("foo", os.ModeDir)
-	assert.NoError(t, err)
-
-	_, err = fooDir.CreateChild("bar", fake.NewRWContent())
+	fsys, err := fake.NewBuilder("/", fake.NewFile("foo", os.ModeDir)).
+		WithFile("foo/bar", fake.NewRWContent()).Build()
 	assert.NoError(t, err)
 
 	// Write to file
@@ -105,7 +97,7 @@ func TestFailureInjector(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test file.
-	_, err = fake.BuilderForOS(fsys).CreateChild("/file.txt")
+	_, err = fake.BuilderFor(fsys).CreateFile("/file.txt")
 	assert.NoError(t, err)
 
 	failsys := failer.NewOS(fsys, failer.NewProbabilityFailer(0, 1.0))

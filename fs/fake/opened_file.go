@@ -25,7 +25,7 @@ import (
 
 // FileDescriptor descriptor ("opened FileDescriptor")
 type FileDescriptor struct {
-	*File
+	*Entry
 	isOpen bool
 
 	dirReader fs.DirReader
@@ -43,8 +43,8 @@ type FileDescriptor struct {
 
 var _ fs.File = (*FileDescriptor)(nil)
 
-func newOpenedFile(entry *File) FileDescriptor {
-	return FileDescriptor{File: entry, isOpen: true}
+func newOpenedFile(entry *Entry) FileDescriptor {
+	return FileDescriptor{Entry: entry, isOpen: true}
 }
 
 func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
@@ -64,7 +64,7 @@ func (f *FileDescriptor) Stat() (fs.FileInfo, error) {
 		return nil, fs.ErrClosed
 	}
 
-	return f.File.stat()
+	return f.Entry.stat()
 }
 
 func (f *FileDescriptor) Close() error {
@@ -77,7 +77,7 @@ func (f *FileDescriptor) Close() error {
 }
 
 func (f *FileDescriptor) Name() string {
-	return f.File.name
+	return f.Entry.name
 }
 
 func (f *FileDescriptor) Read(p []byte) (n int, err error) {

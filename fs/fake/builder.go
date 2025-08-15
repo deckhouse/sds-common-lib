@@ -17,27 +17,48 @@ limitations under the License.
 package fake
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 )
 
-type OSBuilder struct {
+type Builder struct {
 	*OS
+	err error
 }
 
-type FileBuilder = *File
-
-func BuilderForOS(os *OS) OSBuilder {
-	return OSBuilder{OS: os}
+type File struct {
+	name string
+	args []any
 }
 
-func (b OSBuilder) WithChild(path string, args ...any) OSBuilder {
-	b.CreateChild(path, args...)
+func NewFile(name string, args ...any) *File {
+	return &File{name: name, args: args}
+}
+
+func BuilderFor(os *OS) Builder {
+	return Builder{OS: os}
+}
+
+func NewBuilder(rootPath string, args ...any) Builder {
+	os, err := NewOS(rootPath, args...)
+	return Builder{OS: os, err: err}
+}
+
+func (b Builder) WithFile(path string, args ...any) Builder {
+	if b.OS != nil {
+		_, err := b.CreateFile(path, args...)
+		b.err = errors.Join(b.err, err)
+	}
 	return b
 }
 
+func (b Builder) Build() (*OS, error) {
+	return b.OS, b.err
+}
+
 // Creates a new entry by the given path
-func (m OSBuilder) CreateChild(path string, args ...any) (*File, error) {
+func (m Builder) CreateFile(path string, args ...any) (*Entry, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 
@@ -61,7 +82,7 @@ func (m OSBuilder) CreateChild(path string, args ...any) (*File, error) {
 
 // Returns the File object by the given relative or absolute path
 // Flowing symlinks
-func (m OSBuilder) GetFile(path string) (FileBuilder, error) {
+func (m Builder) GetFile(path string) (*Entry, error) {
 	file, err := m.OS.getFileRelative(m.OS.wd, path, true)
 	return file, err
 }
