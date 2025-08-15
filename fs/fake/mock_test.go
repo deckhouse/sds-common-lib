@@ -197,7 +197,7 @@ func TestGetFileRootSimple(t *testing.T) {
 	fileA, err := fs.Root().CreateChild("a")
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("/a")
+	got, err := fake.BuilderFor(fs).GetEntry("/a")
 	assert.NoError(t, err)
 	assert.Same(t, fileA, got, "Invalid file returned")
 }
@@ -219,7 +219,7 @@ func TestGetFileRootNested(t *testing.T) {
 	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("/a/b/file.txt")
+	got, err := fake.BuilderFor(fs).GetEntry("/a/b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
 }
@@ -242,7 +242,7 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 	assert.NoError(t, err)
 
 	fs.SetWdFile(dirA)
-	got, err := fake.BuilderFor(fs).GetFile("b/file.txt")
+	got, err := fake.BuilderFor(fs).GetEntry("b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
 }
@@ -268,7 +268,7 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 	// Current directory set to /a
 	fs.SetWdFile(dirA)
 
-	got, err := fake.BuilderFor(fs).GetFile("../b/foo")
+	got, err := fake.BuilderFor(fs).GetEntry("../b/foo")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Relative up-path resolution failed")
 }
@@ -287,7 +287,7 @@ func TestGetFileSymlinkSimple(t *testing.T) {
 	_, err = fs.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("link.txt")
+	got, err := fake.BuilderFor(fs).GetEntry("link.txt")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Symlink did not resolve correctly")
 }
@@ -311,7 +311,7 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 	_, err = fs.Root().CreateChild("link2.txt", os.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("link2.txt")
+	got, err := fake.BuilderFor(fs).GetEntry("link2.txt")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Recursive symlink did not resolve correctly")
 }
@@ -336,7 +336,7 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 	_, err = fs.Root().CreateChild("link", os.ModeSymlink, fake.LinkReader{Target: "/bar"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("link/foo")
+	got, err := fake.BuilderFor(fs).GetEntry("link/foo")
 	assert.NoError(t, err)
 	assert.Same(t, fooFile, got, "Directory symlink did not resolve correctly")
 }
@@ -366,7 +366,7 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 	_, err = dir2.CreateChild("sym", os.ModeSymlink, fake.LinkReader{Target: "../target"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetFile("dir1/dir2/sym")
+	got, err := fake.BuilderFor(fs).GetEntry("dir1/dir2/sym")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Relative symlink did not resolve correctly")
 }
@@ -376,7 +376,7 @@ func TestGetFileMissingFile(t *testing.T) {
 	fs, err := fake.NewOS("/")
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fs).GetFile("does/not/exist")
+	_, err = fake.BuilderFor(fs).GetEntry("does/not/exist")
 	assert.Error(t, err)
 }
 
@@ -391,7 +391,7 @@ func TestGetFileBrokenSymlink(t *testing.T) {
 	_, err = fs.Root().CreateChild("broken.txt", os.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fs).GetFile("broken.txt")
+	_, err = fake.BuilderFor(fs).GetEntry("broken.txt")
 	assert.Error(t, err)
 }
 
@@ -405,6 +405,6 @@ func TestGetFileWrongFileType(t *testing.T) {
 	_, _ = fileA, err
 
 	// Trying to access a child under a regular file should fail
-	_, err = fake.BuilderFor(fs).GetFile("a/b")
+	_, err = fake.BuilderFor(fs).GetEntry("a/b")
 	assert.Error(t, err)
 }

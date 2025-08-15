@@ -165,10 +165,9 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 			}
 			f.mode = fs.ModeDir
 			modeFound = true
-
 		}
 
-		if !known && !modeFound {
+		if !known {
 			unknownArgs[i] = arg
 		}
 	}

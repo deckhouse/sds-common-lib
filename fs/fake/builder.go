@@ -62,7 +62,7 @@ func (m Builder) CreateFile(path string, args ...any) (*Entry, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 
-	parent, err := m.GetFile(parentPath)
+	parent, err := m.GetEntry(parentPath)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (m Builder) CreateFile(path string, args ...any) (*Entry, error) {
 
 // Returns the File object by the given relative or absolute path
 // Flowing symlinks
-func (m Builder) GetFile(path string) (*Entry, error) {
+func (m Builder) GetEntry(path string) (*Entry, error) {
 	file, err := m.OS.getFileRelative(m.OS.wd, path, true)
 	return file, err
 }

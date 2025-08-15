@@ -26,8 +26,8 @@ import (
 // FileDescriptor descriptor ("opened FileDescriptor")
 type FileDescriptor struct {
 	*Entry
-	isOpen bool
 
+	closed    bool
 	dirReader fs.DirReader
 
 	ioReaderAt io.ReaderAt
@@ -44,14 +44,10 @@ type FileDescriptor struct {
 var _ fs.File = (*FileDescriptor)(nil)
 
 func newOpenedFile(entry *Entry) FileDescriptor {
-	return FileDescriptor{Entry: entry, isOpen: true}
+	return FileDescriptor{Entry: entry}
 }
 
 func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
-	if !f.isOpen {
-		return nil, fs.ErrClosed
-	}
-
 	if f.dirReader == nil {
 		return nil, errors.ErrUnsupported
 	}
@@ -60,20 +56,19 @@ func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 }
 
 func (f *FileDescriptor) Stat() (fs.FileInfo, error) {
-	if !f.isOpen {
+	if f.closed {
 		return nil, fs.ErrClosed
 	}
-
 	return f.Entry.stat()
 }
 
 func (f *FileDescriptor) Close() error {
-	if !f.isOpen {
-		return fs.ErrClosed
+	f.closed = true
+	if f.ioCloser == nil {
+		return errors.ErrUnsupported
 	}
 
-	f.isOpen = false
-	return nil
+	return f.ioCloser.Close()
 }
 
 func (f *FileDescriptor) Name() string {
@@ -81,10 +76,6 @@ func (f *FileDescriptor) Name() string {
 }
 
 func (f *FileDescriptor) Read(p []byte) (n int, err error) {
-	if !f.isOpen {
-		return 0, fs.ErrClosed
-	}
-
 	if f.ioReader == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -93,10 +84,6 @@ func (f *FileDescriptor) Read(p []byte) (n int, err error) {
 }
 
 func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
-	if !f.isOpen {
-		return 0, fs.ErrClosed
-	}
-
 	if f.ioReaderAt == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -105,10 +92,6 @@ func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *FileDescriptor) Write(p []byte) (n int, err error) {
-	if !f.isOpen {
-		return 0, fs.ErrClosed
-	}
-
 	if f.ioWriter == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -117,10 +100,6 @@ func (f *FileDescriptor) Write(p []byte) (n int, err error) {
 }
 
 func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
-	if !f.isOpen {
-		return 0, fs.ErrClosed
-	}
-
 	if f.ioWriterAt == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -129,11 +108,6 @@ func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (f *FileDescriptor) Seek(offset int64, whence int) (int64, error) {
-	// Ensure the descriptor is open
-	if !f.isOpen {
-		return 0, fs.ErrClosed
-	}
-
 	if f.ioSeeker == nil {
 		return 0, errors.ErrUnsupported
 	}

@@ -206,7 +206,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 			return nil, err
 		}
 	} else {
-		file, err = BuilderFor(o).GetFile(name)
+		file, err = BuilderFor(o).GetEntry(name)
 		if err != nil {
 			return nil, toPathError(err, fs.OpenOp, name)
 		}
@@ -216,7 +216,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 }
 
 func (o *OS) Stat(name string) (fs.FileInfo, error) {
-	f, err := BuilderFor(o).GetFile(name)
+	f, err := BuilderFor(o).GetEntry(name)
 	if err != nil {
 		return nil, toPathError(err, fs.StatOp, name)
 	}
@@ -234,7 +234,7 @@ func (o *OS) Lstat(name string) (fs.FileInfo, error) {
 }
 
 func (o *OS) ReadDir(name string) ([]fs.DirEntry, error) {
-	file, err := BuilderFor(o).GetFile(name)
+	file, err := BuilderFor(o).GetEntry(name)
 	if err != nil {
 		return nil, toPathError(err, fs.ReadDirOp, name)
 	}
@@ -243,7 +243,7 @@ func (o *OS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (o *OS) Chdir(dir string) error {
-	f, err := BuilderFor(o).GetFile(dir)
+	f, err := BuilderFor(o).GetEntry(dir)
 	if err != nil {
 		return toPathError(err, fs.ChDirOp, dir)
 	}

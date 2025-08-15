@@ -64,7 +64,6 @@ var _ fs.FileOpener = (*FileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
 func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
-
 	if f.file.Mode().IsDir() {
 		if f.dirReader == nil && !f.disableDirReader {
 			f.dirReader = newDirReader(f.file)
@@ -114,34 +113,33 @@ func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 		}
 	}
 
-	file := newOpenedFile(f.file)
-	file.isOpen = true
+	openedFile := newOpenedFile(f.file)
 	if !f.disableCloser {
-		file.ioCloser = f.ioCloser
+		openedFile.ioCloser = f.ioCloser
 	}
 	if !f.disableReader {
-		file.ioReader = f.ioReader
+		openedFile.ioReader = f.ioReader
 	}
 	if !f.disableReaderAt {
-		file.ioReaderAt = f.ioReaderAt
+		openedFile.ioReaderAt = f.ioReaderAt
 	}
 	if !f.disableSeeker {
-		file.ioSeeker = f.ioSeeker
+		openedFile.ioSeeker = f.ioSeeker
 	}
 	if !f.disableSizer {
-		file.fileSizer = f.fileSizer
+		openedFile.fileSizer = f.fileSizer
 	}
 	if !f.disableWriter {
-		file.ioWriter = f.ioWriter
+		openedFile.ioWriter = f.ioWriter
 	}
 	if !f.disableWriterAt {
-		file.ioWriterAt = f.ioWriterAt
+		openedFile.ioWriterAt = f.ioWriterAt
 	}
 	if !f.disableDirReader {
-		file.dirReader = f.dirReader
+		openedFile.dirReader = f.dirReader
 	}
 
-	return &file, nil
+	return &openedFile, nil
 }
 
 func NewFileOpener(file *Entry, args ...any) (*FileOpener, error) {

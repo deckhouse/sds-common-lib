@@ -66,7 +66,7 @@ var _ = Describe("fake file system", func() {
 
 			It("get file should return correct file", func() {
 				By("checking is not directory")
-				fileObj, err := builder.GetFile(fileInDirPath)
+				fileObj, err := builder.GetEntry(fileInDirPath)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(fileObj).NotTo(BeNil())

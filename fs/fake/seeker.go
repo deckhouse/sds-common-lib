@@ -30,7 +30,7 @@ type Seeker struct {
 
 	ioReaderAt io.ReaderAt
 	ioWriterAt io.WriterAt
-	sizer      fs.FileSizer
+	fileSizer  fs.FileSizer
 }
 
 var _ io.ReadWriter = (*Seeker)(nil)
@@ -49,7 +49,7 @@ func NewSeeker(args ...any) (*Seeker, error) {
 		err := errors.Join(
 			tryCastAndSetArgument(&openedFile.ioReaderAt, arg, &known, newArgError),
 			tryCastAndSetArgument(&openedFile.ioWriterAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&openedFile.sizer, arg, &known, newArgError),
+			tryCastAndSetArgument(&openedFile.fileSizer, arg, &known, newArgError),
 		)
 		if err != nil {
 			return nil, err
@@ -79,7 +79,7 @@ func (f *Seeker) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Size implements fs.Sizer.
 func (f *Seeker) Size() int64 {
-	return f.sizer.Size()
+	return f.fileSizer.Size()
 }
 
 // Seek implements io.ReadWriteSeeker.

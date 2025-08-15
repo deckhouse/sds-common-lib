@@ -64,8 +64,7 @@ func WritesFile(fs fs.OS, text string) error {
 
 // Positive: read file
 func TestReadsFile(t *testing.T) {
-	fsys, err := fake.NewBuilder(
-		"/",
+	fsys, err := fake.NewBuilder("/",
 		fake.NewFile(
 			"foo",
 			fake.NewFile("bar", fake.RWContentFromString("Hello, world!")),
@@ -78,7 +77,7 @@ func TestReadsFile(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	fsys, err := fake.NewBuilder("/", fake.NewFile("foo", os.ModeDir)).
+	fsys, err := fake.NewBuilder("/", fake.NewFile("foo", fs.ModeDir)).
 		WithFile("foo/bar", fake.NewRWContent()).Build()
 	assert.NoError(t, err)
 
@@ -106,4 +105,20 @@ func TestFailureInjector(t *testing.T) {
 	// Attempt to open the file – should fail.
 	_, err = failsys.Open("/file.txt")
 	assert.Error(t, err, "operation should fail due to 100%% probability")
+}
+
+func TestAddDevZero(t *testing.T) {
+	devZero, err := os.Open("/dev/zero")
+	assert.NoError(t, err)
+
+	fsys, err := fake.NewBuilder("/", fake.NewFile("zero", devZero)).Build()
+	assert.NoError(t, err)
+
+	zero, err := fsys.Open("/zero")
+	assert.NoError(t, err)
+
+	b := make([]byte, 10)
+	i, err := zero.Read(b)
+	assert.NoError(t, err)
+	assert.Equal(t, i, 10)
 }
