@@ -30,7 +30,8 @@ import (
 
 // Positive: list content of a directory
 func TestReadDirBasic(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	builder := fake.NewBuilder("/")
+	fsys, err := builder.Build()
 	assert.NoError(t, err)
 
 	// /
@@ -38,7 +39,7 @@ func TestReadDirBasic(t *testing.T) {
 	//     ├── file1
 	//     └── file2
 
-	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
+	dir, err := builder.Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 
 	names := []string{"file1", "file2"}
@@ -60,7 +61,7 @@ func TestReadDirBasic(t *testing.T) {
 
 // Negative: file not found
 func TestReadDirFileNotFound(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.ReadDir("unknown")
@@ -69,7 +70,7 @@ func TestReadDirFileNotFound(t *testing.T) {
 
 // Negative: not a directory
 func TestReadDirNotADirectory(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// Create regular file at /file.txt

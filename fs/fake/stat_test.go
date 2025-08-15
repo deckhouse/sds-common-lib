@@ -31,13 +31,14 @@ import (
 
 // Positive: stat regular file
 func TestStatRegularFile(t *testing.T) {
-	theOS, err := fake.NewOS("/")
+	builder := fake.NewBuilder("/")
+	theOS, err := builder.Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── a.txt
 
-	_, err = theOS.Root().CreateChild("a.txt")
+	_, err = builder.Root().CreateChild("a.txt")
 	assert.NoError(t, err)
 
 	info, err := theOS.Stat("a.txt")
@@ -50,7 +51,7 @@ func TestStatRegularFile(t *testing.T) {
 
 // Negative: file not found
 func TestStatNonExistentFile(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fs.Stat("nonexistent")
@@ -59,20 +60,21 @@ func TestStatNonExistentFile(t *testing.T) {
 
 // Positive: symlink
 func TestLstatSymlink(t *testing.T) {
-	theOS, err := fake.NewOS("/")
+	theBuilder := fake.NewBuilder("/")
+	fsys, err := theBuilder.Build()
 	assert.NoError(t, err)
 
 	// /
 	// ├── a.txt
 	// └── link.txt -> /a.txt
 
-	_, err = theOS.Root().CreateChild("a.txt")
+	_, err = theBuilder.Root().CreateChild("a.txt")
 	assert.NoError(t, err)
 
-	_, err = theOS.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
+	_, err = theBuilder.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
 	assert.NoError(t, err)
 
-	info, err := theOS.Lstat("link.txt")
+	info, err := fsys.Lstat("link.txt")
 	assert.NoError(t, err)
 	assert.Equal(t, "link.txt", info.Name(), "Incorrect file name from Stat")
 	assert.Equal(t, fs.FileMode(0x8000000), info.Mode(), "Incorrect file mode from Stat")
@@ -81,7 +83,7 @@ func TestLstatSymlink(t *testing.T) {
 
 // Negative: file not found
 func TestLstatNonExistentFile(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.Lstat("nonexistent")

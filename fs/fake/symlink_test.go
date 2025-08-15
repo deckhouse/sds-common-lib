@@ -29,7 +29,7 @@ import (
 
 // Positive: single symlink
 func TestSymlinkAndReadLink(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -64,7 +64,7 @@ func TestSymlinkAndReadLink(t *testing.T) {
 
 // Positive: symlink to symlink
 func TestSymlinkAndReadLinkSymlinkToSymlink(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -92,7 +92,7 @@ func TestSymlinkAndReadLinkSymlinkToSymlink(t *testing.T) {
 
 // Negative: file exists
 func TestSymlinkFileExists(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.Create("/file1")
@@ -107,7 +107,7 @@ func TestSymlinkFileExists(t *testing.T) {
 
 // Negative: file not found
 func TestReadLinkFileNotFound(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.ReadLink("/file")

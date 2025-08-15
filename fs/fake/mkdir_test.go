@@ -30,14 +30,14 @@ import (
 
 // Positive: create directory in a subdirectory with absolute path
 func TestMkdirAbsolutePathInSubdir(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 	//     └── dir1
 
-	_, err = fsys.Root().CreateChild("a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
@@ -49,7 +49,7 @@ func TestMkdirAbsolutePathInSubdir(t *testing.T) {
 
 // Positive: create directory in a current directory with relative path
 func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -65,14 +65,14 @@ func TestMkdirRelativePathInCurDirWithRootCwd(t *testing.T) {
 
 // Positive: create directory in a subdirectory with relative path
 func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 	//     └── dir1
 
-	_, err = fsys.Root().CreateChild("a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	// Mkdir in /a
@@ -85,7 +85,7 @@ func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
 
 // Negative: create directory in a non-existent directory
 func TestMkdirNonExistentParent(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
@@ -94,10 +94,10 @@ func TestMkdirNonExistentParent(t *testing.T) {
 
 // Negative: create directory in a non-directory
 func TestMkdirNonDirectory(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("a")
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a")
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/file.txt", 0o755)
@@ -106,10 +106,10 @@ func TestMkdirNonDirectory(t *testing.T) {
 
 // Negative: directory already exists
 func TestMkdirDirectoryExists(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("dir1", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir1", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/dir1", 0o755)
@@ -118,7 +118,7 @@ func TestMkdirDirectoryExists(t *testing.T) {
 
 // Positive: create multiple directories in path
 func TestMkdirAllRelativePathWithRoot(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// MkdirAll nested path
@@ -140,7 +140,7 @@ func TestMkdirAllRelativePathWithRoot(t *testing.T) {
 
 // Positive: create multiple directories already exists (do nothing)
 func TestMkdirAllRelativePathWithExistingDirs(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	err = fsys.MkdirAll("foo/bar/baz", 0o755)

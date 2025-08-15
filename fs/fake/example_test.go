@@ -92,7 +92,7 @@ func TestReadWrite(t *testing.T) {
 }
 
 func TestFailureInjector(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// Create a test file.

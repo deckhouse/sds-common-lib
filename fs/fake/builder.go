@@ -19,7 +19,11 @@ package fake
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/deckhouse/sds-common-lib/fs"
 )
 
 type Builder struct {
@@ -83,6 +87,118 @@ func (m Builder) CreateFile(path string, args ...any) (*Entry, error) {
 // Returns the File object by the given relative or absolute path
 // Flowing symlinks
 func (m Builder) GetEntry(path string) (*Entry, error) {
-	file, err := m.OS.getFileRelative(m.OS.wd, path, true)
+	file, err := m.getFileRelative(m.OS.wd, path, true)
 	return file, err
+}
+
+func (o Builder) Root() *Entry {
+	return &o.root
+}
+
+func (o Builder) GetWdFile() *Entry {
+	return o.wd
+}
+
+func (o Builder) SetWdFile(f *Entry) {
+	o.wd = f
+}
+
+func (o Builder) MakeRelativePath(curDir *Entry, path string) (*Entry, string, error) {
+	if filepath.IsAbs(path) {
+		var err error
+		curDir = &o.root
+		path, err = filepath.Rel(curDir.Path(), path)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	path = filepath.Clean(path)
+	return curDir, path, nil
+}
+
+// Returns the File object by given path
+// `followLink` - if the file is symlink, follow it
+// /
+// ├── dir1 -> /dir2
+// ├── dir1
+// │   └── file1 -> /file2
+// └── file2
+// followLink = true:  /dir1/file1 -> /file2 (regular file)
+// followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
+func (o Builder) getFileRelative(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
+	baseDir, relativePath, err := o.MakeRelativePath(baseDir, relativePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return o.getEntryRelativeImpl(baseDir, relativePath, followLink)
+}
+
+func (o Builder) getEntryRelativeImpl(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
+	// p is normalized relative path from curDir, no extra checks are needed
+
+	head, tail := extractFirstPathItem(relativePath)
+
+	child, ok := baseDir.children[head]
+	if !ok || child == nil {
+		return nil, fmt.Errorf("file not found: %s", head)
+	}
+
+	if tail == "" {
+		// This is the last segment of the path (file itself)
+		if followLink && child.Mode()&os.ModeSymlink != 0 {
+			// follow last symlink
+			if child.linkReader == nil {
+				return nil, fmt.Errorf("don't have link reader")
+			}
+
+			linkTarget, err := child.linkReader.ReadLink()
+			if err != nil {
+				return nil, err
+			}
+
+			return o.getFileRelative(child.parent, linkTarget, true)
+		}
+
+		return child, nil
+	}
+
+	if child.Mode()&os.ModeSymlink != 0 {
+		// child.parent is not nil, because symlink can't be root
+		var err error
+		if child.linkReader == nil {
+			return nil, fmt.Errorf("don't have link reader")
+		}
+
+		linkTarget, err := child.linkReader.ReadLink()
+		if err != nil {
+			return nil, err
+		}
+		child, err = o.getFileRelative(child.parent, linkTarget, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return o.getEntryRelativeImpl(child, tail, followLink)
+}
+
+// Splits relative path, e.g. "a/b/c" -> "a", "b/c"
+func extractFirstPathItem(p string) (head string, tail string) {
+	parts := strings.SplitN(p, "/", 2)
+	head = parts[0]
+	if len(parts) == 2 {
+		tail = parts[1]
+	}
+	return head, tail
+}
+
+// Converts error to `fs.PathError`
+func toPathError(err error, op fs.Op, path string) error {
+	return &fs.PathError{
+		Op:   string(op),
+		Path: path,
+		Err:  err,
+	}
 }

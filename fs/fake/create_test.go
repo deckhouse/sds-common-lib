@@ -29,8 +29,8 @@ import (
 var _ = Describe("fake file system", func() {
 	var err error
 	JustBeforeEach(func() {
-		os, err := fake.NewOS("/")
-		builder = fake.BuilderFor(os)
+		builder = fake.NewBuilder("/")
+		_, err = builder.Build()
 		Expect(err).NotTo(HaveOccurred())
 	})
 

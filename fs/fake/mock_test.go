@@ -30,65 +30,65 @@ import (
 
 // Positive: absolute path when current directory is root
 func TestMakeRelativePathAbsolutePath(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "/a/b/c")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "/a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
-	assert.Same(t, fs.Root(), curdir, "Invalid curdir")
+	assert.Same(t, fake.BuilderFor(fs).Root(), curdir, "Invalid curdir")
 	assert.Equal(t, p, "a/b/c", "Invalid path")
 }
 
 // Positive: absolute path that is not normalized (contains ".." and trailing "/")
 func TestMakeRelativePathAbsoluteNotNormalizedPath(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "/a/../b/c/")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "/a/../b/c/")
 
 	assert.NoError(t, err, "Failed to make relative path")
-	assert.Same(t, fs.Root(), curdir, "Invalid curdir")
+	assert.Same(t, fake.BuilderFor(fs).Root(), curdir, "Invalid curdir")
 	assert.Equal(t, "b/c", p, "Invalid path")
 }
 
 // Positive: relative path when current directory is root
 func TestMakeRelativePathRelativePathWithRootCwd(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "a/b/c")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "a/b/c")
 
 	assert.NoError(t, err, "Failed to make relative path")
-	assert.Same(t, fs.Root(), curdir, "Invalid curdir")
+	assert.Same(t, fake.BuilderFor(fs).Root(), curdir, "Invalid curdir")
 	assert.Equal(t, "a/b/c", p, "Invalid path")
 }
 
 // Positive: absolute path when current directory is not root
 func TestMakeRelativePathAbsolutePathWithDifferentCwd(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "/a/b/c")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "/a/b/c")
 	assert.NoError(t, err, "Failed to make relative path")
-	assert.Same(t, fs.Root(), curdir, "Invalid curdir")
+	assert.Same(t, fake.BuilderFor(fs).Root(), curdir, "Invalid curdir")
 	assert.Equal(t, "a/b/c", p, "Invalid path")
 }
 
 // Positive: relative path when current directory is a subdirectory
 func TestMakeRelativePathRelativePathWithDifferentCwd(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "b/c")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "b/c", p, "Invalid path")
@@ -96,14 +96,14 @@ func TestMakeRelativePathRelativePathWithDifferentCwd(t *testing.T) {
 
 // Positive: relative path containing ".." segments from a subdirectory
 func TestMakeRelativePathRelativePathWithDifferentCwdAndUp(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "../b/c")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "../b/c")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "../b/c", p, "Invalid path")
@@ -111,14 +111,14 @@ func TestMakeRelativePathRelativePathWithDifferentCwdAndUp(t *testing.T) {
 
 // Positive: relative path not normalized (contains "/../" and trailing "/") from a subdirectory
 func TestMakeRelativePathRelativeNotNormalizedWithDifferentCwd(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 
-	curdir, p, err := fs.MakeRelativePath(fs.GetWdFile(), "b/../c/d/")
+	curdir, p, err := fake.BuilderFor(fs).MakeRelativePath(fake.BuilderFor(fs).GetWdFile(), "b/../c/d/")
 	assert.NoError(t, err, "Failed to make relative path")
 	assert.Same(t, dirA, curdir, "Invalid curdir")
 	assert.Equal(t, "c/d", p, "Invalid path")
@@ -188,13 +188,13 @@ func TestCreateFileNameWithSlash(t *testing.T) {
 
 // Positive: simple lookup directory with absolute path
 func TestGetFileRootSimple(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 
-	fileA, err := fs.Root().CreateChild("a")
+	fileA, err := fake.BuilderFor(fs).Root().CreateChild("a")
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderFor(fs).GetEntry("/a")
@@ -204,7 +204,7 @@ func TestGetFileRootSimple(t *testing.T) {
 
 // Nested lookup directory with absolute path ("/a/b/file.txt")
 func TestGetFileRootNested(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -212,7 +212,7 @@ func TestGetFileRootNested(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 	dirB, err := dirA.CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
@@ -226,7 +226,7 @@ func TestGetFileRootNested(t *testing.T) {
 
 // Positive: lookup when current directory is not the root (curdir = /a)
 func TestGetFileNonRootCurdir(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -234,14 +234,14 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 	dirB, err := dirA.CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
 	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 	got, err := fake.BuilderFor(fs).GetEntry("b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
@@ -249,7 +249,7 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 
 // Positive: relative path with "../"
 func TestGetFileRelativeUpPath(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -258,15 +258,15 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 	//     └── foo
 
 	// Create /a and /b directories
-	dirA, err := fs.Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := fs.Root().CreateChild("b", os.ModeDir)
+	dirB, err := fake.BuilderFor(fs).Root().CreateChild("b", os.ModeDir)
 	assert.NoError(t, err)
 	target, err := dirB.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Current directory set to /a
-	fs.SetWdFile(dirA)
+	fake.BuilderFor(fs).SetWdFile(dirA)
 
 	got, err := fake.BuilderFor(fs).GetEntry("../b/foo")
 	assert.NoError(t, err)
@@ -275,16 +275,16 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 
 // Positive: symlink pointing to a regular file in the same directory
 func TestGetFileSymlinkSimple(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// ├── target.txt
 	// └── link.txt -> /target.txt
 
-	target, err := fs.Root().CreateChild("target.txt")
+	target, err := fake.BuilderFor(fs).Root().CreateChild("target.txt")
 	assert.NoError(t, err)
-	_, err = fs.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
+	_, err = fake.BuilderFor(fs).Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderFor(fs).GetEntry("link.txt")
@@ -294,7 +294,7 @@ func TestGetFileSymlinkSimple(t *testing.T) {
 
 // Positive: recursive symlink: link2 -> link1 -> target
 func TestGetFileSymlinkRecursive(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -302,13 +302,13 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 	// ├── link1.txt -> /target.txt
 	// └── link2.txt -> /link1.txt
 
-	target, err := fs.Root().CreateChild("target.txt")
+	target, err := fake.BuilderFor(fs).Root().CreateChild("target.txt")
 	assert.NoError(t, err)
 
-	_, err = fs.Root().CreateChild("link1.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
+	_, err = fake.BuilderFor(fs).Root().CreateChild("link1.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
 
-	_, err = fs.Root().CreateChild("link2.txt", os.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
+	_, err = fake.BuilderFor(fs).Root().CreateChild("link2.txt", os.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderFor(fs).GetEntry("link2.txt")
@@ -318,7 +318,7 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 
 // Positive: symlink directory resolution: /link/foo where /link -> /bar
 func TestGetFileSymlinkDirectory(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -327,13 +327,13 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 	// └── link -> /bar
 
 	// Create /bar directory with a file foo inside
-	barDir, err := fs.Root().CreateChild("bar", os.ModeDir)
+	barDir, err := fake.BuilderFor(fs).Root().CreateChild("bar", os.ModeDir)
 	assert.NoError(t, err)
 	fooFile, err := barDir.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Create symlink /link that points to /bar
-	_, err = fs.Root().CreateChild("link", os.ModeSymlink, fake.LinkReader{Target: "/bar"})
+	_, err = fake.BuilderFor(fs).Root().CreateChild("link", os.ModeSymlink, fake.LinkReader{Target: "/bar"})
 	assert.NoError(t, err)
 
 	got, err := fake.BuilderFor(fs).GetEntry("link/foo")
@@ -343,7 +343,7 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 
 // Positive: symlink with relative path: dir1/dir2/sym -> ../target
 func TestGetFileSymlinkRelativePath(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -353,7 +353,7 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 	//     └── sym -> ../target
 
 	// Construct /dir1/target
-	dir1, err := fs.Root().CreateChild("dir1", os.ModeDir)
+	dir1, err := fake.BuilderFor(fs).Root().CreateChild("dir1", os.ModeDir)
 	assert.NoError(t, err)
 	target, err := dir1.CreateChild("target")
 	assert.NoError(t, err)
@@ -373,7 +373,7 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 
 // Negative: missing file should return an error
 func TestGetFileMissingFile(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fake.BuilderFor(fs).GetEntry("does/not/exist")
@@ -382,13 +382,13 @@ func TestGetFileMissingFile(t *testing.T) {
 
 // Negative: broken symlink (points to non-existing file) should return an error
 func TestGetFileBrokenSymlink(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── broken.txt -> /nonexistent
 
-	_, err = fs.Root().CreateChild("broken.txt", os.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
+	_, err = fake.BuilderFor(fs).Root().CreateChild("broken.txt", os.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
 	assert.NoError(t, err)
 
 	_, err = fake.BuilderFor(fs).GetEntry("broken.txt")
@@ -397,10 +397,10 @@ func TestGetFileBrokenSymlink(t *testing.T) {
 
 // Negative: wrong file type in the middle of the path (expect directory, got regular file)
 func TestGetFileWrongFileType(t *testing.T) {
-	fs, err := fake.NewOS("/")
+	fs, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	fileA, err := fs.Root().CreateChild("a") // regular file, NOT a directory
+	fileA, err := fake.BuilderFor(fs).Root().CreateChild("a") // regular file, NOT a directory
 	assert.NoError(t, err)
 	_, _ = fileA, err
 

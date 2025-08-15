@@ -36,8 +36,8 @@ type OS struct {
 
 var _ fs.OS = (*OS)(nil)
 
-func NewOS(rootPath string, args ...any) (*OS, error) {
-	root, err := NewRootFile(rootPath, args...)
+func NewOS(rootPath string, rootArgs ...any) (*OS, error) {
+	root, err := NewRootFile(rootPath, rootArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,121 +50,9 @@ func NewOS(rootPath string, args ...any) (*OS, error) {
 	return &fs, err
 }
 
-func (o *OS) Root() *Entry {
-	return &o.root
-}
-
-func (o *OS) GetWdFile() *Entry {
-	return o.wd
-}
-
-func (o *OS) SetWdFile(f *Entry) {
-	o.wd = f
-}
-
-func (o *OS) MakeRelativePath(curDir *Entry, path string) (*Entry, string, error) {
-	if filepath.IsAbs(path) {
-		var err error
-		curDir = &o.root
-		path, err = filepath.Rel(curDir.Path(), path)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	path = filepath.Clean(path)
-	return curDir, path, nil
-}
-
-// Returns the File object by given path
-// `followLink` - if the file is symlink, follow it
-// /
-// ├── dir1 -> /dir2
-// ├── dir1
-// │   └── file1 -> /file2
-// └── file2
-// followLink = true:  /dir1/file1 -> /file2 (regular file)
-// followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
-func (o *OS) getFileRelative(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
-	baseDir, relativePath, err := o.MakeRelativePath(baseDir, relativePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return o.getEntryRelativeImpl(baseDir, relativePath, followLink)
-}
-
-func (o *OS) getEntryRelativeImpl(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
-	// p is normalized relative path from curDir, no extra checks are needed
-
-	head, tail := extractFirstPathItem(relativePath)
-
-	child, ok := baseDir.children[head]
-	if !ok || child == nil {
-		return nil, fmt.Errorf("file not found: %s", head)
-	}
-
-	if tail == "" {
-		// This is the last segment of the path (file itself)
-		if followLink && child.Mode()&os.ModeSymlink != 0 {
-			// follow last symlink
-			if child.linkReader == nil {
-				return nil, fmt.Errorf("don't have link reader")
-			}
-
-			linkTarget, err := child.linkReader.ReadLink()
-			if err != nil {
-				return nil, err
-			}
-
-			return o.getFileRelative(child.parent, linkTarget, true)
-		}
-
-		return child, nil
-	}
-
-	if child.Mode()&os.ModeSymlink != 0 {
-		// child.parent is not nil, because symlink can't be root
-		var err error
-		if child.linkReader == nil {
-			return nil, fmt.Errorf("don't have link reader")
-		}
-
-		linkTarget, err := child.linkReader.ReadLink()
-		if err != nil {
-			return nil, err
-		}
-		child, err = o.getFileRelative(child.parent, linkTarget, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return o.getEntryRelativeImpl(child, tail, followLink)
-}
-
-// Splits relative path, e.g. "a/b/c" -> "a", "b/c"
-func extractFirstPathItem(p string) (head string, tail string) {
-	parts := strings.SplitN(p, "/", 2)
-	head = parts[0]
-	if len(parts) == 2 {
-		tail = parts[1]
-	}
-	return head, tail
-}
-
-// Converts error to `fs.PathError`
-func toPathError(err error, op fs.Op, path string) error {
-	return &fs.PathError{
-		Op:   string(op),
-		Path: path,
-		Err:  err,
-	}
-}
-
 // Chmod implements fsext.OS.
 func (o *OS) Chmod(name string, mode fs.FileMode) error {
-	file, err := o.getFileRelative(o.wd, name, false)
+	file, err := BuilderFor(o).getFileRelative(o.wd, name, false)
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
@@ -174,7 +62,7 @@ func (o *OS) Chmod(name string, mode fs.FileMode) error {
 
 // Chown implements fsext.OS.
 func (o *OS) Chown(name string, uid int, gid int) error {
-	file, err := o.getFileRelative(o.wd, name, false)
+	file, err := BuilderFor(o).getFileRelative(o.wd, name, false)
 	if err != nil {
 		return toPathError(err, fs.ChmodOp, name)
 	}
@@ -225,7 +113,7 @@ func (o *OS) Stat(name string) (fs.FileInfo, error) {
 }
 
 func (o *OS) Lstat(name string) (fs.FileInfo, error) {
-	file, err := o.getFileRelative(o.wd, name, false)
+	file, err := BuilderFor(o).getFileRelative(o.wd, name, false)
 	if err != nil {
 		return nil, toPathError(err, fs.LstatOp, name)
 	}
@@ -272,7 +160,7 @@ func (o *OS) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (o *OS) MkdirAll(path string, perm os.FileMode) error {
-	curdir, p, err := o.MakeRelativePath(o.wd, path)
+	curdir, p, err := BuilderFor(o).MakeRelativePath(o.wd, path)
 	if err != nil {
 		return err
 	}
@@ -306,7 +194,7 @@ func (o *OS) Symlink(oldName, newName string) error {
 }
 
 func (o *OS) ReadLink(name string) (string, error) {
-	file, err := o.getFileRelative(o.wd, name, false)
+	file, err := BuilderFor(o).getFileRelative(o.wd, name, false)
 	if err != nil {
 		return "", err
 	}

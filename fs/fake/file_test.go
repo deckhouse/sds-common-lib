@@ -29,7 +29,7 @@ import (
 // Open
 // Negative
 func TestFileOpen(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.Open("/file")
@@ -40,10 +40,7 @@ func TestFileOpen(t *testing.T) {
 
 // Positive
 func TestFileStat(t *testing.T) {
-	fsys, err := fake.NewOS("/")
-	assert.NoError(t, err)
-
-	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
+	fsys, err := fake.NewBuilder("/", fake.NewFile("file", fs.FileMode(0o644))).Build()
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -59,10 +56,7 @@ func TestFileStat(t *testing.T) {
 
 // Negative: file closed
 func TestFileStatClosed(t *testing.T) {
-	fsys, err := fake.NewOS("/")
-	assert.NoError(t, err)
-
-	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
+	fsys, err := fake.NewBuilder("/", fake.NewFile("file", fs.FileMode(0o644))).Build()
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -79,10 +73,7 @@ func TestFileStatClosed(t *testing.T) {
 
 // TODO: close, try to close again
 func TestFileClose(t *testing.T) {
-	fsys, err := fake.NewOS("/")
-	assert.NoError(t, err)
-
-	_, err = fsys.Root().CreateChild("file", fs.FileMode(0o644))
+	fsys, err := fake.NewBuilder("/", fake.NewFile("file", fs.FileMode(0o644))).Build()
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -99,12 +90,12 @@ func TestFileClose(t *testing.T) {
 
 // Positive
 func TestFileName(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	name := "file"
 
-	_, err = fsys.Root().CreateChild(name, fs.FileMode(0o644))
+	_, err = fake.BuilderFor(fsys).Root().CreateChild(name, fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/" + name)
@@ -115,11 +106,11 @@ func TestFileName(t *testing.T) {
 
 // Positive: file closed (safe to call after close)
 func TestFileNameClosed(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	name := "file"
-	_, err = fsys.Root().CreateChild(name, fs.FileMode(0o644))
+	_, err = fake.BuilderFor(fsys).Root().CreateChild(name, fs.FileMode(0o644))
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/" + name)
@@ -135,7 +126,7 @@ func TestFileNameClosed(t *testing.T) {
 
 // Positive: read whole content of a directory
 func TestFileReadDir(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -144,7 +135,7 @@ func TestFileReadDir(t *testing.T) {
 	//         ...
 	//     └── file4
 
-	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
+	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.Entry, len(names))
@@ -167,7 +158,7 @@ func TestFileReadDir(t *testing.T) {
 
 // Positive: read content of a directory by chunks
 func TestFileReadDirChunks(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -176,7 +167,7 @@ func TestFileReadDirChunks(t *testing.T) {
 	//         ...
 	//     └── file4
 
-	dir, err := fsys.Root().CreateChild("dir", os.ModeDir)
+	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.Entry, len(names))
@@ -214,10 +205,10 @@ func TestFileReadDirChunks(t *testing.T) {
 
 // Negative: file closed
 func TestFileReadDirClosed(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("dir", 0o755|os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir", 0o755|os.ModeDir)
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/dir")
@@ -237,11 +228,11 @@ func TestFileReadDirClosed(t *testing.T) {
 
 // Positive: seek using different whence values
 func TestFileSeekPositive(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// Create regular file and set its size manually for the test
-	_, err = fsys.Root().CreateChild("file", fake.OfSize{100})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("file", fake.OfSize{100})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -265,10 +256,10 @@ func TestFileSeekPositive(t *testing.T) {
 
 // Negative: seek out of bounds (positive and negative)
 func TestFileSeekOutOfBounds(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", fake.OfSize{50})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("file", fake.OfSize{50})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
@@ -296,10 +287,10 @@ func TestFileSeekOutOfBounds(t *testing.T) {
 
 // Negative: invalid whence value
 func TestFileSeekInvalidWhence(t *testing.T) {
-	fsys, err := fake.NewOS("/")
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fsys.Root().CreateChild("file", fake.OfSize{10})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("file", fake.OfSize{10})
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/file")
