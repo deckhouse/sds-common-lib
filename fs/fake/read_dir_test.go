@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package fake_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,8 @@ import (
 
 // Positive: list content of a directory
 func TestReadDirBasic(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	builder := fake.NewBuilder("/")
+	fsys, err := builder.Build()
 	assert.NoError(t, err)
 
 	// /
@@ -38,10 +39,15 @@ func TestReadDirBasic(t *testing.T) {
 	//     ├── file1
 	//     └── file2
 
-	dir, err := mockfs.CreateFile(&fsys.Root, "dir", os.ModeDir)
+	dir, err := builder.Root().CreateChild("dir", os.ModeDir)
 	assert.NoError(t, err)
-	f1, _ := mockfs.CreateFile(dir, "file1", 0)
-	f2, _ := mockfs.CreateFile(dir, "file2", 0)
+
+	names := []string{"file1", "file2"}
+	files := make([]*fake.Entry, len(names))
+	for i, name := range names {
+		files[i], err = dir.CreateChild(name)
+		assert.NoError(t, err)
+	}
 
 	fd, err := fsys.Open("/dir")
 	assert.NoError(t, err)
@@ -49,13 +55,13 @@ func TestReadDirBasic(t *testing.T) {
 	entries, err := fd.ReadDir(0)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 2)
-	assert.Equal(t, f1.Name, entries[0].Name())
-	assert.Equal(t, f2.Name, entries[1].Name())
+	assert.Equal(t, names[0], entries[0].Name())
+	assert.Equal(t, names[1], entries[1].Name())
 }
 
 // Negative: file not found
 func TestReadDirFileNotFound(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	_, err = fsys.ReadDir("unknown")
@@ -64,7 +70,7 @@ func TestReadDirFileNotFound(t *testing.T) {
 
 // Negative: not a directory
 func TestReadDirNotADirectory(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// Create regular file at /file.txt

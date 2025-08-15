@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs
+package fake
 
 import (
 	"io"
+
+	"github.com/deckhouse/sds-common-lib/fs"
 )
 
 // RWContent is a simple in-memory implementation of FileContent backed by a
@@ -26,6 +28,10 @@ import (
 type RWContent struct {
 	data []byte
 }
+
+var _ io.ReaderAt = (*RWContent)(nil)
+var _ io.WriterAt = (*RWContent)(nil)
+var _ fs.FileSizer = (*RWContent)(nil)
 
 // Creates new empty RWContent
 func NewRWContent() *RWContent {
@@ -44,10 +50,8 @@ func RWContentFromString(s string) *RWContent {
 	return RWContentFromBytes([]byte(s))
 }
 
-// Attaches RWContent as content provider to the file
-func (c *RWContent) SetupFile(f *MockFile) {
-	f.Content = c
-	f.Size = int64(len(c.data))
+func (c *RWContent) Size() int64 {
+	return int64(len(c.data))
 }
 
 // Returns current content as bytes
@@ -65,7 +69,7 @@ func (c *RWContent) GetString() string {
 // ReadAt copies len(p) bytes starting at offset off into p. It follows the
 // semantics of io.ReaderAt. If the requested range goes beyond the end of the
 // slice, the function copies the remaining bytes and returns io.EOF.
-func (c *RWContent) ReadAt(file *MockFile, p []byte, off int64) (n int, err error) {
+func (c *RWContent) ReadAt(p []byte, off int64) (n int, err error) {
 	if off >= int64(len(c.data)) {
 		return 0, io.EOF
 	}
@@ -82,7 +86,7 @@ func (c *RWContent) ReadAt(file *MockFile, p []byte, off int64) (n int, err erro
 // WriteAt writes len(p) bytes starting at offset off to the underlying slice.
 // The slice is automatically grown (filling the gap with zeros) when the write
 // goes beyond the current length. File size is updated accordingly.
-func (c *RWContent) WriteAt(file *MockFile, p []byte, off int64) (n int, err error) {
+func (c *RWContent) WriteAt(p []byte, off int64) (n int, err error) {
 	// Ensure the underlying slice is large enough.
 	end := off + int64(len(p))
 	if end > int64(len(c.data)) {
@@ -94,10 +98,6 @@ func (c *RWContent) WriteAt(file *MockFile, p []byte, off int64) (n int, err err
 
 	copy(c.data[off:end], p)
 	n = len(p)
-
-	if file != nil {
-		file.Size = int64(len(c.data))
-	}
 
 	return n, nil
 }

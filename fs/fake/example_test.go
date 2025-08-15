@@ -14,21 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// This example shows how to use MockFS to test file system operations
+// This example shows how to use [fake] to test file system operations
 
-package mockfs_test
+package fake_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/deckhouse/sds-common-lib/fs/fsext"
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs"
+	"github.com/deckhouse/sds-common-lib/fs/failer"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
 
 // Example function to test
-func ReadsFile(fs fsext.FS) (string, error) {
+func ReadsFile(fs fs.OS) (string, error) {
 	file, err := fs.Open("/foo/bar")
 	if err != nil {
 		return "", err
@@ -50,7 +51,7 @@ func ReadsFile(fs fsext.FS) (string, error) {
 }
 
 // Example function to test
-func WritesFile(fs fsext.FS, text string) error {
+func WritesFile(fs fs.OS, text string) error {
 	file, err := fs.Open("/foo/bar")
 	if err != nil {
 		return err
@@ -63,19 +64,12 @@ func WritesFile(fs fsext.FS, text string) error {
 
 // Positive: read file
 func TestReadsFile(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/",
+		fake.NewFile(
+			"foo",
+			fake.NewFile("bar", fake.RWContentFromString("Hello, world!")),
+		)).Build()
 	assert.NoError(t, err)
-
-	// Prepare fake filesystem
-	fooDir, err := mockfs.CreateFile(&fsys.Root, "foo", os.ModeDir)
-	assert.NoError(t, err)
-
-	barFile, err := mockfs.CreateFile(fooDir, "bar", 0)
-	assert.NoError(t, err)
-
-	// Provide file content using RWContent utility
-	rw := mockfs.RWContentFromString("Hello, world!")
-	rw.SetupFile(barFile)
 
 	res, err := ReadsFile(fsys)
 	assert.NoError(t, err)
@@ -83,19 +77,9 @@ func TestReadsFile(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/", fake.NewFile("foo", fs.ModeDir)).
+		WithFile("foo/bar", fake.NewRWContent()).Build()
 	assert.NoError(t, err)
-
-	// Prepare fake filesystem
-	fooDir, err := mockfs.CreateFile(&fsys.Root, "foo", os.ModeDir)
-	assert.NoError(t, err)
-
-	barFile, err := mockfs.CreateFile(fooDir, "bar", 0)
-	assert.NoError(t, err)
-
-	// Provide empty file
-	rw := mockfs.NewRWContent()
-	rw.SetupFile(barFile)
 
 	// Write to file
 	err = WritesFile(fsys, "Hello, world!")
@@ -108,17 +92,33 @@ func TestReadWrite(t *testing.T) {
 }
 
 func TestFailureInjector(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// Create a test file.
-	_, err = fsys.CreateFile("/file.txt", 0)
+	_, err = fake.BuilderFor(fsys).CreateFile("/file.txt")
 	assert.NoError(t, err)
 
+	failsys := failer.NewOS(fsys, failer.NewProbabilityFailer(0, 1.0))
 	// Inject ProbabilityFailer with 100% failure probability.
-	fsys.Failer = mockfs.NewProbabilityFailer(0, 1.0)
 
 	// Attempt to open the file – should fail.
-	_, err = fsys.Open("/file.txt")
-	assert.Error(t, err, "operation should fail due to 100% probability")
+	_, err = failsys.Open("/file.txt")
+	assert.Error(t, err, "operation should fail due to 100%% probability")
+}
+
+func TestAddDevZero(t *testing.T) {
+	devZero, err := os.Open("/dev/zero")
+	assert.NoError(t, err)
+
+	fsys, err := fake.NewBuilder("/", fake.NewFile("zero", devZero)).Build()
+	assert.NoError(t, err)
+
+	zero, err := fsys.Open("/zero")
+	assert.NoError(t, err)
+
+	b := make([]byte, 10)
+	i, err := zero.Read(b)
+	assert.NoError(t, err)
+	assert.Equal(t, i, 10)
 }

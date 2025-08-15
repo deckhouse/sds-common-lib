@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs
+package failer
 
 import (
 	"fmt"
 	"math/rand"
+
+	"github.com/deckhouse/sds-common-lib/fs"
 )
 
 // Generates random failures with the given probability
@@ -37,7 +39,7 @@ func NewProbabilityFailer(seed int64, prob float64) *ProbabilityFailer {
 	}
 }
 
-func (pf *ProbabilityFailer) ShouldFail(_ *MockFS, op string, _ any, _ ...any) error {
+func (pf *ProbabilityFailer) ShouldFail(_ fs.OS, op fs.Op, _ any, _ ...any) error {
 	if pf.probability <= 0 {
 		return nil
 	}

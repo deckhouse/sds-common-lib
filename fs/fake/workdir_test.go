@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mockfs_test
+package fake_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/deckhouse/sds-common-lib/fs/mockfs"
+	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,22 +30,22 @@ import (
 
 // Positive: chdir to a directory
 func TestChdir(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── a
 
-	dirA, err := mockfs.CreateFile(&fsys.Root, "a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")
 	assert.NoError(t, err)
 
-	assert.Equal(t, fsys.CurDir, dirA)
+	assert.Equal(t, fake.BuilderFor(fsys).GetWdFile(), dirA)
 
 	// Negative: chdir to non-dir
-	_, err = mockfs.CreateFile(&fsys.Root, "file.txt", 0)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("file.txt")
 	assert.NoError(t, err)
 	err = fsys.Chdir("file.txt")
 	assert.Error(t, err)
@@ -53,7 +53,7 @@ func TestChdir(t *testing.T) {
 
 // Nagative: file not found
 func TestChdirNonExistent(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/no_such_dir")
@@ -64,7 +64,7 @@ func TestChdirNonExistent(t *testing.T) {
 
 // Positive: change working directory and getwd should return the correct path
 func TestGetwd(t *testing.T) {
-	fsys, err := mockfs.NewFsMock()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -74,7 +74,7 @@ func TestGetwd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "/", wd, "Working directory is wrong")
 
-	_, err = mockfs.CreateFile(&fsys.Root, "a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")

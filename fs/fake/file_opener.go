@@ -1,0 +1,205 @@
+/*
+Copyright 2025 Flant JSC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package fake
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"slices"
+
+	"github.com/deckhouse/sds-common-lib/fs"
+)
+
+type FileOpener struct {
+	ioReaderAt io.ReaderAt
+	ioWriterAt io.WriterAt
+
+	fileSizer fs.FileSizer
+
+	disableReaderAt  bool
+	disableReader    bool
+	disableWriterAt  bool
+	disableWriter    bool
+	disableSeeker    bool
+	disableSizer     bool
+	disableCloser    bool
+	disableDirReader bool
+
+	file *Entry
+
+	ioWriter  io.Writer
+	ioReader  io.Reader
+	ioSeeker  io.Seeker
+	ioCloser  io.Closer
+	dirReader fs.DirReader
+}
+
+var (
+	ReadOnly    = &struct{}{}
+	WriteOnly   = &struct{}{}
+	NoReader    = &struct{}{}
+	NoWriter    = &struct{}{}
+	NoSeeker    = &struct{}{}
+	NoSizer     = &struct{}{}
+	NoAt        = &struct{}{}
+	NoDirReader = &struct{}{}
+)
+
+var _ fs.FileOpener = (*FileOpener)(nil)
+
+// OpenFile implements fs.FileOpener.
+func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
+	if f.file.Mode().IsDir() {
+		if f.dirReader == nil && !f.disableDirReader {
+			f.dirReader = newDirReader(f.file)
+		}
+	} else {
+		if f.ioSeeker == nil &&
+			!f.disableSeeker &&
+			f.ioReader == nil &&
+			f.ioWriter == nil &&
+			f.fileSizer != nil {
+			args := make([]any, 0, 3)
+			args = append(args, f.fileSizer)
+			if f.ioReaderAt != nil {
+				args = append(args, f.ioReaderAt)
+			}
+			if f.ioWriterAt != nil {
+				args = append(args, f.ioWriterAt)
+			}
+			seeker, err := NewSeeker(args...)
+			if err != nil {
+				return nil, err
+			}
+			f.ioSeeker = seeker
+			f.ioReader = seeker
+			f.ioWriter = seeker
+			f.ioReaderAt = seeker
+			f.ioWriterAt = seeker
+		}
+	}
+
+	if f.ioCloser == nil && !f.disableCloser {
+		args := []any{
+			f.ioReaderAt,
+			f.ioWriterAt,
+			f.ioWriter,
+			f.ioReader,
+			f.ioSeeker,
+			f.dirReader,
+		}
+		args = slices.DeleteFunc(args, func(arg any) bool {
+			return arg == nil
+		})
+		var err error
+		f.ioCloser, err = NewCloser(args...)
+		if err != nil {
+			return nil, fmt.Errorf("making closer: %w", err)
+		}
+	}
+
+	openedFile := newOpenedFile(f.file)
+	if !f.disableCloser {
+		openedFile.ioCloser = f.ioCloser
+	}
+	if !f.disableReader {
+		openedFile.ioReader = f.ioReader
+	}
+	if !f.disableReaderAt {
+		openedFile.ioReaderAt = f.ioReaderAt
+	}
+	if !f.disableSeeker {
+		openedFile.ioSeeker = f.ioSeeker
+	}
+	if !f.disableSizer {
+		openedFile.fileSizer = f.fileSizer
+	}
+	if !f.disableWriter {
+		openedFile.ioWriter = f.ioWriter
+	}
+	if !f.disableWriterAt {
+		openedFile.ioWriterAt = f.ioWriterAt
+	}
+	if !f.disableDirReader {
+		openedFile.dirReader = f.dirReader
+	}
+
+	return &openedFile, nil
+}
+
+func NewFileOpener(file *Entry, args ...any) (*FileOpener, error) {
+	var f FileOpener
+	f.file = file
+
+	for i, arg := range args {
+		switch arg {
+		case ReadOnly:
+			f.disableWriter = true
+			f.disableWriterAt = true
+			continue
+		case WriteOnly:
+			f.disableReader = true
+			f.disableReaderAt = true
+			continue
+		case NoSeeker:
+			f.disableSeeker = true
+			continue
+		case NoSizer:
+			f.disableSizer = true
+			continue
+		case NoReader:
+			f.disableReader = true
+			continue
+		case NoWriter:
+			f.disableWriter = true
+			continue
+		case NoAt:
+			f.disableReaderAt = true
+			f.disableWriterAt = true
+			continue
+		case NoDirReader:
+			f.disableDirReader = true
+			continue
+		}
+
+		known := false
+		newArgError := func() error {
+			return fmt.Errorf("decorator error (%d, %v)", i, arg)
+		}
+
+		err := errors.Join(
+			tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioReaderAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioWriterAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if !known {
+			return nil, fmt.Errorf("unknown argument: %w", newArgError())
+		}
+	}
+
+	return &f, nil
+}
