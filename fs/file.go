@@ -19,6 +19,7 @@ limitations under the License.
 package fs
 
 //go:generate go tool mockgen -typed -package mock -copyright_file ../hack/boilerplate.txt -write_source_comment -destination=mock/$GOFILE -source=$GOFILE
+//go:generate go tool mockgen -typed -package mock -copyright_file ../hack/boilerplate.txt -write_source_comment -destination=mock/io.go io Reader,Writer,ReaderAt,WriterAt,Seeker,ReadWriter,ReadCloser,WriteCloser,ReadWriteCloser,ReadSeeker,ReadSeekCloser,WriteSeeker,ReadWriteSeeker
 
 import (
 	"io"
