@@ -25,9 +25,9 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-type FileOpener struct {
-	ioReaderAt io.ReaderAt
-	ioWriterAt io.WriterAt
+type fileOpener struct {
+	readerAt io.ReaderAt
+	writerAt io.WriterAt
 
 	fileSizer fs.FileSizer
 
@@ -42,10 +42,10 @@ type FileOpener struct {
 
 	file *Entry
 
-	ioWriter  io.Writer
-	ioReader  io.Reader
-	ioSeeker  io.Seeker
-	ioCloser  io.Closer
+	writer    io.Writer
+	reader    io.Reader
+	seeker    io.Seeker
+	closer    io.Closer
 	dirReader fs.DirReader
 }
 
@@ -60,80 +60,86 @@ var (
 	NoDirReader = &struct{}{}
 )
 
-var _ fs.FileOpener = (*FileOpener)(nil)
+var _ fs.FileOpener = (*fileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
-func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
+func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	if f.file.Mode().IsDir() {
 		if f.dirReader == nil && !f.disableDirReader {
 			f.dirReader = newDirReader(f.file)
 		}
 	} else {
-		if f.ioSeeker == nil &&
+		if f.seeker == nil &&
 			!f.disableSeeker &&
-			f.ioReader == nil &&
-			f.ioWriter == nil &&
+			f.reader == nil &&
+			f.writer == nil &&
 			f.fileSizer != nil {
 			args := make([]any, 0, 3)
 			args = append(args, f.fileSizer)
-			if f.ioReaderAt != nil {
-				args = append(args, f.ioReaderAt)
+			if f.readerAt != nil {
+				args = append(args, f.readerAt)
 			}
-			if f.ioWriterAt != nil {
-				args = append(args, f.ioWriterAt)
+			if f.writerAt != nil {
+				args = append(args, f.writerAt)
 			}
 			seeker, err := NewSeeker(args...)
 			if err != nil {
 				return nil, err
 			}
-			f.ioSeeker = seeker
-			f.ioReader = seeker
-			f.ioWriter = seeker
-			f.ioReaderAt = seeker
-			f.ioWriterAt = seeker
+			f.seeker = seeker
+			f.reader = seeker
+			f.writer = seeker
+			f.readerAt = seeker
+			f.writerAt = seeker
 		}
 	}
 
-	if f.ioCloser == nil && !f.disableCloser {
+	if f.closer == nil && !f.disableCloser {
 		args := []any{
-			f.ioReaderAt,
-			f.ioWriterAt,
-			f.ioWriter,
-			f.ioReader,
-			f.ioSeeker,
+			f.readerAt,
+			f.writerAt,
+			f.writer,
+			f.reader,
+			f.seeker,
 			f.dirReader,
 		}
 		args = slices.DeleteFunc(args, func(arg any) bool {
 			return arg == nil
 		})
-		var err error
-		f.ioCloser, err = NewCloser(args...)
+		closer, err := NewCloser(args...)
 		if err != nil {
 			return nil, fmt.Errorf("making closer: %w", err)
 		}
+		f.readerAt = closer
+		f.writerAt = closer
+		f.writer = closer
+		f.reader = closer
+		f.seeker = closer
+		f.dirReader = closer
+		f.closer = closer
 	}
 
 	openedFile := newOpenedFile(f.file)
 	if !f.disableCloser {
-		openedFile.ioCloser = f.ioCloser
+		openedFile.ioCloser = f.closer
 	}
 	if !f.disableReader {
-		openedFile.ioReader = f.ioReader
+		openedFile.ioReader = f.reader
 	}
 	if !f.disableReaderAt {
-		openedFile.ioReaderAt = f.ioReaderAt
+		openedFile.ioReaderAt = f.readerAt
 	}
 	if !f.disableSeeker {
-		openedFile.ioSeeker = f.ioSeeker
+		openedFile.ioSeeker = f.seeker
 	}
 	if !f.disableSizer {
 		openedFile.fileSizer = f.fileSizer
 	}
 	if !f.disableWriter {
-		openedFile.ioWriter = f.ioWriter
+		openedFile.ioWriter = f.writer
 	}
 	if !f.disableWriterAt {
-		openedFile.ioWriterAt = f.ioWriterAt
+		openedFile.ioWriterAt = f.writerAt
 	}
 	if !f.disableDirReader {
 		openedFile.dirReader = f.dirReader
@@ -142,8 +148,8 @@ func (f FileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	return &openedFile, nil
 }
 
-func NewFileOpener(file *Entry, args ...any) (*FileOpener, error) {
-	var f FileOpener
+func NewFileOpener(file *Entry, args ...any) (*fileOpener, error) {
+	var f fileOpener
 	f.file = file
 
 	for i, arg := range args {
@@ -183,12 +189,12 @@ func NewFileOpener(file *Entry, args ...any) (*FileOpener, error) {
 		}
 
 		err := errors.Join(
-			tryCastAndSetArgument(&f.ioReader, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioWriter, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioReaderAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioWriterAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioSeeker, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.ioCloser, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.reader, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.writer, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.readerAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.writerAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.seeker, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.closer, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 		)
 

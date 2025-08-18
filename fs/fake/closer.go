@@ -33,13 +33,13 @@ var _ fs.DirReader = (*Closer)(nil)
 type Closer struct {
 	closed bool
 
-	ioReaderAt io.ReaderAt
-	ioWriterAt io.WriterAt
+	readerAt io.ReaderAt
+	writerAt io.WriterAt
 
-	ioWriter io.Writer
-	ioReader io.Reader
-	ioSeeker io.Seeker
-	ioCloser io.Closer
+	writer io.Writer
+	reader io.Reader
+	seeker io.Seeker
+	closer io.Closer
 
 	dirReader fs.DirReader
 }
@@ -53,12 +53,12 @@ func NewCloser(args ...any) (*Closer, error) {
 		}
 
 		err := errors.Join(
-			tryCastAndSetArgument(&c.ioReaderAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&c.ioWriterAt, arg, &known, newArgError),
-			tryCastAndSetArgument(&c.ioWriter, arg, &known, newArgError),
-			tryCastAndSetArgument(&c.ioReader, arg, &known, newArgError),
-			tryCastAndSetArgument(&c.ioSeeker, arg, &known, newArgError),
-			tryCastAndSetArgument(&c.ioCloser, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.readerAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.writerAt, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.writer, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.reader, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.seeker, arg, &known, newArgError),
+			tryCastAndSetArgument(&c.closer, arg, &known, newArgError),
 			tryCastAndSetArgument(&c.dirReader, arg, &known, newArgError),
 		)
 
@@ -92,11 +92,11 @@ func (c *Closer) Seek(offset int64, whence int) (int64, error) {
 		return 0, fs.ErrClosed
 	}
 
-	if c.ioSeeker == nil {
+	if c.seeker == nil {
 		return 0, errors.ErrUnsupported
 	}
 
-	return c.ioSeeker.Seek(offset, whence)
+	return c.seeker.Seek(offset, whence)
 }
 
 // Read implements io.ReadWriteCloser.
@@ -105,11 +105,11 @@ func (c *Closer) Read(p []byte) (n int, err error) {
 		return 0, fs.ErrClosed
 	}
 
-	if c.ioReader == nil {
+	if c.reader == nil {
 		return 0, errors.ErrUnsupported
 	}
 
-	return c.ioReader.Read(p)
+	return c.reader.Read(p)
 }
 
 // Write implements io.ReadWriteCloser.
@@ -118,11 +118,11 @@ func (c *Closer) Write(p []byte) (n int, err error) {
 		return 0, fs.ErrClosed
 	}
 
-	if c.ioWriter == nil {
+	if c.writer == nil {
 		return 0, errors.ErrUnsupported
 	}
 
-	return c.ioWriter.Write(p)
+	return c.writer.Write(p)
 }
 
 // WriteAt implements io.WriterAt.
@@ -131,11 +131,11 @@ func (c *Closer) WriteAt(p []byte, off int64) (n int, err error) {
 		return 0, fs.ErrClosed
 	}
 
-	if c.ioWriterAt == nil {
+	if c.writerAt == nil {
 		return 0, errors.ErrUnsupported
 	}
 
-	return c.ioWriterAt.WriteAt(p, off)
+	return c.writerAt.WriteAt(p, off)
 }
 
 // ReadAt implements io.ReaderAt.
@@ -144,11 +144,11 @@ func (c *Closer) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, fs.ErrClosed
 	}
 
-	if c.ioReaderAt == nil {
+	if c.readerAt == nil {
 		return 0, errors.ErrUnsupported
 	}
 
-	return c.ioReaderAt.ReadAt(p, off)
+	return c.readerAt.ReadAt(p, off)
 }
 
 // Close implements io.Closer.
@@ -157,8 +157,8 @@ func (c *Closer) Close() error {
 		return fs.ErrClosed
 	}
 	c.closed = true
-	if c.ioCloser != nil {
-		return c.ioCloser.Close()
+	if c.closer != nil {
+		return c.closer.Close()
 	}
 	return nil
 }

@@ -24,17 +24,17 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-var _ fs.DirReader = (*DirReader)(nil)
+var _ fs.DirReader = (*dirReader)(nil)
 
-type DirReader struct {
+type dirReader struct {
 	file *Entry
 
 	readDirOffset  int
 	sortedChildren []*Entry // Cached dir entries for ReadDir
 }
 
-func newDirReader(file *Entry) *DirReader {
-	return &DirReader{
+func newDirReader(file *Entry) *dirReader {
+	return &dirReader{
 		file: file,
 		sortedChildren: sortDir(file.children, func(a, b *Entry) bool {
 			return a.name < b.name
@@ -43,7 +43,7 @@ func newDirReader(file *Entry) *DirReader {
 }
 
 // ReadDir implements [fs.DirReader].
-func (f *DirReader) ReadDir(n int) ([]fs.DirEntry, error) {
+func (f *dirReader) ReadDir(n int) ([]fs.DirEntry, error) {
 	dir := f.file
 
 	if !dir.Mode().IsDir() {

@@ -51,7 +51,7 @@ func NewBuilder(rootPath string, args ...any) *Builder {
 
 func (b *Builder) WithFile(path string, args ...any) *Builder {
 	if b.OS != nil {
-		_, err := b.CreateFile(path, args...)
+		_, err := b.CreateEntry(path, args...)
 		b.err = errors.Join(b.err, err)
 	}
 	return b
@@ -64,7 +64,7 @@ func (b *Builder) Build() (os *OS, err error) {
 }
 
 // Creates a new entry by the given path
-func (m Builder) CreateFile(path string, args ...any) (*Entry, error) {
+func (m Builder) CreateEntry(path string, args ...any) (*Entry, error) {
 	parentPath := filepath.Dir(path)
 	dirName := filepath.Base(path)
 

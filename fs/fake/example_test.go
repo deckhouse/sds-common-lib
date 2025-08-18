@@ -96,7 +96,7 @@ func TestFailureInjector(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create a test file.
-	_, err = fake.BuilderFor(fsys).CreateFile("/file.txt")
+	_, err = fake.BuilderFor(fsys).CreateEntry("/file.txt")
 	assert.NoError(t, err)
 
 	failsys := failer.NewOS(fsys, failer.NewProbabilityFailer(0, 1.0))

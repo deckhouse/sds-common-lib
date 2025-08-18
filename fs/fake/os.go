@@ -89,7 +89,7 @@ func (o *OS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) 
 	var file *Entry
 	var err error
 	if (flag & fs.O_CREATE) != 0 {
-		file, err = BuilderFor(o).CreateFile(name)
+		file, err = BuilderFor(o).CreateEntry(name)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func (o *OS) Getwd() (string, error) {
 }
 
 func (o *OS) Mkdir(name string, perm os.FileMode) error {
-	_, err := BuilderFor(o).CreateFile(name, os.ModeDir|perm)
+	_, err := BuilderFor(o).CreateEntry(name, os.ModeDir|perm)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (o *OS) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func (o *OS) Symlink(oldName, newName string) error {
-	_, err := BuilderFor(o).CreateFile(newName, os.ModeSymlink, LinkReader{Target: oldName})
+	_, err := BuilderFor(o).CreateEntry(newName, os.ModeSymlink, LinkReader{Target: oldName})
 	if err != nil {
 		return err
 	}

@@ -152,7 +152,7 @@ var _ = Describe("builder", func() {
 		})
 
 		It("indicate error if creating the same file", func() {
-			entry, err := builder.CreateFile("file")
+			entry, err := builder.CreateEntry("file")
 			Expect(entry).To(BeNil())
 			Expect(err).To(HaveOccurred())
 		})
@@ -236,7 +236,7 @@ var _ = Describe("builder", func() {
 		myString := "This is a sample string."
 		reader := strings.NewReader(myString)
 
-		_, err := builder.CreateFile("file", reader)
+		_, err := builder.CreateEntry("file", reader)
 		Expect(err).ToNot(HaveOccurred())
 
 		file, err := builder.Open("file")
