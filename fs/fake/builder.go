@@ -105,7 +105,8 @@ func (o Builder) SetWdFile(f *Entry) {
 	o.wd = f
 }
 
-func (o Builder) MakeRelativePath(curDir *Entry, path string) (*Entry, string, error) {
+// TODO: semantic is unclear
+func (o Builder) makeRelativePath(curDir *Entry, path string) (*Entry, string, error) {
 	if filepath.IsAbs(path) {
 		var err error
 		curDir = &o.root
@@ -129,7 +130,7 @@ func (o Builder) MakeRelativePath(curDir *Entry, path string) (*Entry, string, e
 // followLink = true:  /dir1/file1 -> /file2 (regular file)
 // followLink = false: /dir1/file1 -> /dir1/file1 (symlink)
 func (o Builder) getFileRelative(baseDir *Entry, relativePath string, followLink bool) (*Entry, error) {
-	baseDir, relativePath, err := o.MakeRelativePath(baseDir, relativePath)
+	baseDir, relativePath, err := o.makeRelativePath(baseDir, relativePath)
 	if err != nil {
 		return nil, err
 	}

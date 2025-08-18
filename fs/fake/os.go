@@ -160,7 +160,7 @@ func (o *OS) Mkdir(name string, perm os.FileMode) error {
 }
 
 func (o *OS) MkdirAll(path string, perm os.FileMode) error {
-	curdir, p, err := BuilderFor(o).MakeRelativePath(o.wd, path)
+	curdir, p, err := BuilderFor(o).makeRelativePath(o.wd, path)
 	if err != nil {
 		return err
 	}

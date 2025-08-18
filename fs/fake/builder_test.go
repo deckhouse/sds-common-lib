@@ -95,11 +95,49 @@ var _ = Describe("builder", func() {
 		})
 
 		It("can GetEntry by full path", func() {
-			Expect(builder.GetEntry("/dir/child"))
+			Expect(builder.GetEntry("/dir/child")).ToNot(BeNil())
 		})
 		It("can GetEntry by relative path", func() {
-			Expect(builder.GetEntry("dir/child"))
-			Expect(builder.GetEntry("file"))
+			Expect(builder.GetEntry("dir/child")).ToNot(BeNil())
+			Expect(builder.GetEntry("file")).ToNot(BeNil())
+			Expect(builder.GetEntry("dir/../file")).ToNot(BeNil())
+			Expect(builder.GetEntry("./dir/child")).ToNot(BeNil())
+			Expect(builder.GetEntry("./file")).ToNot(BeNil())
+			Expect(builder.GetEntry("./dir/../file")).ToNot(BeNil())
+		})
+
+		When("WdFile is set to dir", func() {
+			JustBeforeEach(func() {
+				builder.SetWdFile(builder.Root().GetChild("dir"))
+			})
+			It("has correct wd file", func() {
+				wd := builder.GetWdFile()
+				Expect(wd).ToNot(BeNil())
+				Expect(wd).To(BeEquivalentTo(builder.Root().GetChild("dir")))
+			})
+			It("can GetEntry by full path", func() {
+				Expect(builder.GetEntry("/dir/child")).ToNot(BeNil())
+				Expect(builder.GetEntry("/file")).ToNot(BeNil())
+			})
+			It("can GetEntry by relative path", func() {
+				Expect(builder.GetEntry("child")).ToNot(BeNil())
+				Expect(builder.GetEntry("../file")).ToNot(BeNil())
+				Expect(builder.GetEntry("../dir/child")).ToNot(BeNil())
+				Expect(builder.GetEntry("./child")).ToNot(BeNil())
+				Expect(builder.GetEntry("./../file")).ToNot(BeNil())
+				Expect(builder.GetEntry("./../dir/child")).ToNot(BeNil())
+			})
+			It("can not GetEntry by relative path as from root", func() {
+				_, err := builder.GetEntry("dir/child")
+				Expect(err).To(HaveOccurred())
+
+				_, err = builder.GetEntry("file")
+				Expect(err).To(HaveOccurred())
+			})
+			It("goes back if changed to Root", func() {
+				builder.SetWdFile(builder.Root())
+				Expect(builder.GetWdFile()).To(BeEquivalentTo(builder.Root()))
+			})
 		})
 
 		When("same file added", func() {
