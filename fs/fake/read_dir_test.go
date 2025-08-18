@@ -30,8 +30,8 @@ import (
 
 // Positive: list content of a directory
 func TestReadDirBasic(t *testing.T) {
-	builder := fake.NewBuilder("/")
-	fsys, err := builder.Build()
+	fsys, err := fake.NewBuilder("/").Build()
+	builder := fake.BuilderFor(fsys)
 	assert.NoError(t, err)
 
 	// /

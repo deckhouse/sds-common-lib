@@ -31,8 +31,8 @@ import (
 
 // Positive: stat regular file
 func TestStatRegularFile(t *testing.T) {
-	builder := fake.NewBuilder("/")
-	theOS, err := builder.Build()
+	theOS, err := fake.NewBuilder("/").Build()
+	builder := fake.BuilderFor(theOS)
 	assert.NoError(t, err)
 
 	// /
@@ -60,9 +60,9 @@ func TestStatNonExistentFile(t *testing.T) {
 
 // Positive: symlink
 func TestLstatSymlink(t *testing.T) {
-	theBuilder := fake.NewBuilder("/")
-	fsys, err := theBuilder.Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
+	theBuilder := fake.BuilderFor(fsys)
 
 	// /
 	// ├── a.txt

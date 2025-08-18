@@ -44,12 +44,12 @@ func BuilderFor(os *OS) Builder {
 	return Builder{OS: os}
 }
 
-func NewBuilder(rootPath string, args ...any) Builder {
+func NewBuilder(rootPath string, args ...any) *Builder {
 	os, err := NewOS(rootPath, args...)
-	return Builder{OS: os, err: err}
+	return &Builder{OS: os, err: err}
 }
 
-func (b Builder) WithFile(path string, args ...any) Builder {
+func (b *Builder) WithFile(path string, args ...any) *Builder {
 	if b.OS != nil {
 		_, err := b.CreateFile(path, args...)
 		b.err = errors.Join(b.err, err)
@@ -57,8 +57,10 @@ func (b Builder) WithFile(path string, args ...any) Builder {
 	return b
 }
 
-func (b Builder) Build() (*OS, error) {
-	return b.OS, b.err
+func (b *Builder) Build() (os *OS, err error) {
+	b.OS, os = os, b.OS
+	b.err, err = err, b.err
+	return
 }
 
 // Creates a new entry by the given path

@@ -29,9 +29,10 @@ import (
 var _ = Describe("fake file system", func() {
 	var err error
 	JustBeforeEach(func() {
-		builder = fake.NewBuilder("/")
-		_, err = builder.Build()
+		var theOS *fake.OS
+		theOS, err = fake.NewBuilder("/").Build()
 		Expect(err).NotTo(HaveOccurred())
+		builder = fake.BuilderFor(theOS)
 	})
 
 	const dirName = "dir"

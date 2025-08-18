@@ -82,4 +82,7 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-tool go.uber.org/mock/mockgen
+tool (
+	github.com/onsi/ginkgo/v2/ginkgo
+	go.uber.org/mock/mockgen
+)
