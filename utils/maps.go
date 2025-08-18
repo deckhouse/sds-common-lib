@@ -1,4 +1,4 @@
-package u
+package utils
 
 // MapEnsureAndSet ensures the map is initialized and sets key to value.
 // It panics if m is nil.
