@@ -36,8 +36,8 @@ type OS struct {
 
 var _ fs.OS = (*OS)(nil)
 
-func NewOS(rootPath string, rootArgs ...any) (*OS, error) {
-	root, err := NewRootFile(rootPath, rootArgs...)
+func newOS(rootPath string, rootArgs ...any) (*OS, error) {
+	root, err := newRootFile(rootPath, rootArgs...)
 	if err != nil {
 		return nil, err
 	}

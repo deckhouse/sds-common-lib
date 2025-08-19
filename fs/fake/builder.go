@@ -45,7 +45,7 @@ func BuilderFor(os *OS) Builder {
 }
 
 func NewBuilder(rootPath string, args ...any) *Builder {
-	os, err := NewOS(rootPath, args...)
+	os, err := newOS(rootPath, args...)
 	return &Builder{OS: os, err: err}
 }
 

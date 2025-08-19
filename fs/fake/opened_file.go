@@ -23,8 +23,8 @@ import (
 	"github.com/deckhouse/sds-common-lib/fs"
 )
 
-// FileDescriptor descriptor ("opened FileDescriptor")
-type FileDescriptor struct {
+// fileDescriptor descriptor ("opened fileDescriptor")
+type fileDescriptor struct {
 	*Entry
 
 	closed    bool
@@ -41,13 +41,13 @@ type FileDescriptor struct {
 	fileSizer fs.FileSizer
 }
 
-var _ fs.File = (*FileDescriptor)(nil)
+var _ fs.File = (*fileDescriptor)(nil)
 
-func newOpenedFile(entry *Entry) FileDescriptor {
-	return FileDescriptor{Entry: entry}
+func newOpenedFile(entry *Entry) fileDescriptor {
+	return fileDescriptor{Entry: entry}
 }
 
-func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
+func (f *fileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	if f.dirReader == nil {
 		return nil, errors.ErrUnsupported
 	}
@@ -55,14 +55,14 @@ func (f *FileDescriptor) ReadDir(n int) ([]fs.DirEntry, error) {
 	return f.dirReader.ReadDir(n)
 }
 
-func (f *FileDescriptor) Stat() (fs.FileInfo, error) {
+func (f *fileDescriptor) Stat() (fs.FileInfo, error) {
 	if f.closed {
 		return nil, fs.ErrClosed
 	}
 	return f.Entry.stat()
 }
 
-func (f *FileDescriptor) Close() error {
+func (f *fileDescriptor) Close() error {
 	f.closed = true
 	if f.ioCloser == nil {
 		return errors.ErrUnsupported
@@ -71,11 +71,11 @@ func (f *FileDescriptor) Close() error {
 	return f.ioCloser.Close()
 }
 
-func (f *FileDescriptor) Name() string {
+func (f *fileDescriptor) Name() string {
 	return f.Entry.name
 }
 
-func (f *FileDescriptor) Read(p []byte) (n int, err error) {
+func (f *fileDescriptor) Read(p []byte) (n int, err error) {
 	if f.ioReader == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -83,7 +83,7 @@ func (f *FileDescriptor) Read(p []byte) (n int, err error) {
 	return f.ioReader.Read(p)
 }
 
-func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
+func (f *fileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
 	if f.ioReaderAt == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -91,7 +91,7 @@ func (f *FileDescriptor) ReadAt(p []byte, off int64) (n int, err error) {
 	return f.ioReaderAt.ReadAt(p, off)
 }
 
-func (f *FileDescriptor) Write(p []byte) (n int, err error) {
+func (f *fileDescriptor) Write(p []byte) (n int, err error) {
 	if f.ioWriter == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -99,7 +99,7 @@ func (f *FileDescriptor) Write(p []byte) (n int, err error) {
 	return f.ioWriter.Write(p)
 }
 
-func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
+func (f *fileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
 	if f.ioWriterAt == nil {
 		return 0, errors.ErrUnsupported
 	}
@@ -107,7 +107,7 @@ func (f *FileDescriptor) WriteAt(p []byte, off int64) (n int, err error) {
 	return f.ioWriterAt.WriteAt(p, off)
 }
 
-func (f *FileDescriptor) Seek(offset int64, whence int) (int64, error) {
+func (f *fileDescriptor) Seek(offset int64, whence int) (int64, error) {
 	if f.ioSeeker == nil {
 		return 0, errors.ErrUnsupported
 	}

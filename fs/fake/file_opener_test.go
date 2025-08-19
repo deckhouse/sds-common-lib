@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("builder", func() {
+var _ = Describe("FileOpener", func() {
 	var builder *fake.Builder
 	var ctrl *gomock.Controller
 	var sizer *mock.MockFileSizer

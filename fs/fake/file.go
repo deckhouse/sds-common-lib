@@ -69,7 +69,7 @@ func (dir *Entry) readDir() ([]fs.DirEntry, error) {
 	return entries, nil
 }
 
-func NewRootFile(path string, args ...any) (*Entry, error) {
+func newRootFile(path string, args ...any) (*Entry, error) {
 	args = append(args, fs.ModeDir)
 	return createFile(nil, path, args...)
 }
@@ -138,12 +138,14 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 		var fileFound bool
 		var file *File
 
+		var linkReaderFound bool
+
 		err := errors.Join(
 			tryCastAndSetArgument(&file, arg, &fileFound, newArgError),
 			tryCastAndSetArgument(&mode, arg, &modeFound, newArgError),
 			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
-			tryCastAndSetArgument(&f.linkReader, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.linkReader, arg, &linkReaderFound, newArgError),
 		)
 
 		if err != nil {
@@ -166,6 +168,15 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 				return nil, fmt.Errorf("child file found but mode is %v expected %v: %w", mode, fs.ModeDir, newArgError())
 			}
 			f.mode = fs.ModeDir
+			modeFound = true
+		}
+
+		if linkReaderFound {
+			known = true
+			if modeFound && f.mode != fs.ModeSymlink {
+				return nil, fmt.Errorf("child file found but mode is %v expected %v: %w", mode, fs.ModeDir, newArgError())
+			}
+			f.mode = fs.ModeSymlink
 			modeFound = true
 		}
 

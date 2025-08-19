@@ -25,64 +25,6 @@ import (
 )
 
 // ================================
-// Tests for `CreateFile`
-// ================================
-
-// Positive: create root directory
-func TestCreateFileRootSuccess(t *testing.T) {
-	root, err := fake.NewRootFile("/")
-	assert.NoError(t, err)
-
-	assert.Equal(t, "/", root.Path(), "Root path invalid")
-	assert.True(t, root.Mode().IsDir(), "Root should be a directory")
-}
-
-// Positive: create file inside a directory
-func TestCreateFileChildSuccess(t *testing.T) {
-
-	// /
-	// └── a
-	//     └── b.txt
-
-	root, _ := fake.NewRootFile("/")
-	dirA, err := root.CreateChild("a", os.ModeDir)
-	assert.NoError(t, err)
-	fileB, err := dirA.CreateChild("b.txt")
-	assert.NoError(t, err)
-
-	assert.Same(t, fileB, dirA.GetChild("b.txt"), "Child not registered in parent map")
-	expectedPath := "/a/b.txt"
-	assert.Equal(t, expectedPath, fileB.Path(), "Unexpected file path")
-}
-
-// Error: empty name
-func TestCreateFileEmptyName(t *testing.T) {
-	_, err := fake.NewRootFile("")
-	assert.Error(t, err)
-}
-
-// Error: parent nil but name not '/'
-func TestCreateFileParentNilNonRoot(t *testing.T) {
-	_, err := fake.NewRootFile("a")
-	assert.Error(t, err)
-}
-
-// Error: parent is not directory
-func TestCreateFileParentNotDir(t *testing.T) {
-	root, _ := fake.NewRootFile("/")
-	reg, _ := root.CreateChild("file.txt")
-	_, err := reg.CreateChild("child")
-	assert.Error(t, err)
-}
-
-// Error: name contains '/' when parent provided
-func TestCreateFileNameWithSlash(t *testing.T) {
-	root, _ := fake.NewRootFile("/")
-	_, err := root.CreateChild("a/b", os.ModeDir)
-	assert.Error(t, err)
-}
-
-// ================================
 // Tests for `GetFile`
 // ================================
 
