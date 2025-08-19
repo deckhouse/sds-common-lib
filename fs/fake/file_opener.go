@@ -40,7 +40,7 @@ type fileOpener struct {
 	disableCloser    bool
 	disableDirReader bool
 
-	file *Entry
+	entry *Entry
 
 	writer    io.Writer
 	reader    io.Reader
@@ -66,9 +66,9 @@ var _ fs.FileOpener = (*fileOpener)(nil)
 
 // OpenFile implements fs.FileOpener.
 func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
-	if f.file.Mode().IsDir() {
+	if f.entry.Mode().IsDir() {
 		if f.dirReader == nil && !f.disableDirReader {
-			f.dirReader = newDirReader(f.file)
+			f.dirReader = newDirReader(f.entry)
 		}
 	} else {
 		if f.seeker == nil &&
@@ -120,7 +120,7 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 		f.closer = closer
 	}
 
-	openedFile := newOpenedFile(f.file)
+	openedFile := newOpenedFile(f.entry)
 	if !f.disableCloser {
 		openedFile.ioCloser = f.closer
 	}
@@ -151,7 +151,7 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 
 func NewFileOpener(file *Entry, args ...any) (*fileOpener, error) {
 	var f fileOpener
-	f.file = file
+	f.entry = file
 
 	for i, arg := range args {
 		switch arg {
@@ -209,7 +209,7 @@ func NewFileOpener(file *Entry, args ...any) (*fileOpener, error) {
 		}
 	}
 
-	if f.file.mode.IsDir() {
+	if f.entry.mode.IsDir() {
 		f.disableReader = true
 		f.disableWriter = true
 		f.disableReaderAt = true
