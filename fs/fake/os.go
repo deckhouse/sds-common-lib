@@ -73,7 +73,7 @@ func (o *OS) Chown(name string, uid int, gid int) error {
 
 // DirFS implements fsext.OS.
 func (os *OS) DirFS(dir string) fs.FS {
-	return NewFS(dir, os)
+	return newFS(dir, os)
 }
 
 func (o *OS) Open(name string) (fs.File, error) {

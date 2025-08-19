@@ -30,7 +30,7 @@ type FS struct {
 
 var _ fs.FS = (*FS)(nil)
 
-func NewFS(root string, o *OS) *FS {
+func newFS(root string, o *OS) *FS {
 	if filepath.IsLocal(root) {
 		root = filepath.Join(o.wd.Path(), root)
 		root = filepath.Clean(root)
