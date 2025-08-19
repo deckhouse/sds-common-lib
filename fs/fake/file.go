@@ -122,7 +122,6 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 
 	var hasMode bool
 	var hasDirReader bool
-	var hasFiles bool
 
 	var files []*File
 
@@ -180,7 +179,7 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 			modeFound = true
 		}
 
-		if hasFiles && hasDirReader {
+		if len(files) > 0 && hasDirReader {
 			return nil, errors.New("can't have files and dir reader")
 		}
 
