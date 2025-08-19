@@ -81,10 +81,10 @@ var _ = Describe("RWContent", func() {
 		})
 
 		It("WriteAt from middle", func() {
-			newStr := "wo"
+			newStr := "LL"
 			b := ([]byte)(newStr)
 			Expect(c.WriteAt(b, 2)).To(Equal(len(b)))
-			Expect(c.GetString()).To(Equal("Hewoo"))
+			Expect(c.GetString()).To(Equal("HeLLo"))
 			Expect(c.Size()).To(BeEquivalentTo(5))
 		})
 
