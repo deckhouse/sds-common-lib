@@ -49,15 +49,17 @@ type fileOpener struct {
 	dirReader fs.DirReader
 }
 
-var (
-	ReadOnly    = &struct{}{}
-	WriteOnly   = &struct{}{}
-	NoReader    = &struct{}{}
-	NoWriter    = &struct{}{}
-	NoSeeker    = &struct{}{}
-	NoSizer     = &struct{}{}
-	NoAt        = &struct{}{}
-	NoDirReader = &struct{}{}
+type OpenerFlag int
+
+const (
+	ReadOnly = OpenerFlag(iota)
+	WriteOnly
+	NoReader
+	NoWriter
+	NoSeeker
+	NoSizer
+	NoAt
+	NoDirReader
 )
 
 var _ fs.FileOpener = (*fileOpener)(nil)
@@ -71,8 +73,7 @@ func (f fileOpener) OpenFile(flag int, perm fs.FileMode) (fs.File, error) {
 	} else {
 		if f.seeker == nil &&
 			!f.disableSeeker &&
-			f.reader == nil &&
-			f.writer == nil &&
+			f.reader == nil && f.writer == nil &&
 			f.fileSizer != nil {
 			args := make([]any, 0, 3)
 			args = append(args, f.fileSizer)
@@ -196,6 +197,7 @@ func NewFileOpener(file *Entry, args ...any) (*fileOpener, error) {
 			tryCastAndSetArgument(&f.seeker, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.closer, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
+			tryCastAndSetArgument(&f.dirReader, arg, &known, newArgError),
 		)
 
 		if err != nil {
@@ -205,6 +207,14 @@ func NewFileOpener(file *Entry, args ...any) (*fileOpener, error) {
 		if !known {
 			return nil, fmt.Errorf("unknown argument: %w", newArgError())
 		}
+	}
+
+	if f.file.mode.IsDir() {
+		f.disableReader = true
+		f.disableWriter = true
+		f.disableReaderAt = true
+		f.disableWriterAt = true
+		f.disableSizer = true
 	}
 
 	return &f, nil

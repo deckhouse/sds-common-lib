@@ -82,6 +82,9 @@ func (m Builder) CreateEntry(path string, args ...any) (*Entry, error) {
 	}
 
 	file, err := parent.CreateChild(dirName, args...)
+	if err != nil {
+		return nil, err
+	}
 	file.sys = &m.OS.defaultSys
 	return file, err
 }
