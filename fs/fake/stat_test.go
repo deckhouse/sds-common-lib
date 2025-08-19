@@ -17,7 +17,6 @@ limitations under the License.
 package fake_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/deckhouse/sds-common-lib/fs"
@@ -71,7 +70,7 @@ func TestLstatSymlink(t *testing.T) {
 	_, err = theBuilder.Root().CreateChild("a.txt")
 	assert.NoError(t, err)
 
-	_, err = theBuilder.Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
+	_, err = theBuilder.Root().CreateChild("link.txt", fs.ModeSymlink, fake.LinkReader{Target: "/a.txt"})
 	assert.NoError(t, err)
 
 	info, err := fsys.Lstat("link.txt")

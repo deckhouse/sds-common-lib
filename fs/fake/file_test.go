@@ -18,7 +18,6 @@ package fake_test
 
 import (
 	"io"
-	"os"
 	"testing"
 
 	"github.com/deckhouse/sds-common-lib/fs"
@@ -135,7 +134,7 @@ func TestFileReadDir(t *testing.T) {
 	//         ...
 	//     └── file4
 
-	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", os.ModeDir)
+	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", fs.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.Entry, len(names))
@@ -167,7 +166,7 @@ func TestFileReadDirChunks(t *testing.T) {
 	//         ...
 	//     └── file4
 
-	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", os.ModeDir)
+	dir, err := fake.BuilderFor(fsys).Root().CreateChild("dir", fs.ModeDir)
 	assert.NoError(t, err)
 	names := []string{"file1", "file2", "file3", "file4"}
 	files := make([]*fake.Entry, len(names))
@@ -208,7 +207,7 @@ func TestFileReadDirClosed(t *testing.T) {
 	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir", 0o755|os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir", 0o755|fs.ModeDir)
 	assert.NoError(t, err)
 
 	fd, err := fsys.Open("/dir")

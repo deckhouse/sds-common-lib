@@ -17,9 +17,9 @@ limitations under the License.
 package fake_test
 
 import (
-	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +37,7 @@ func TestMkdirAbsolutePathInSubdir(t *testing.T) {
 	// └── a
 	//     └── dir1
 
-	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/a/dir1", 0o755)
@@ -72,7 +72,7 @@ func TestMkdirRelativePathInSubdirWithRootCwd(t *testing.T) {
 	// └── a
 	//     └── dir1
 
-	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
 
 	// Mkdir in /a
@@ -109,7 +109,7 @@ func TestMkdirDirectoryExists(t *testing.T) {
 	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir1", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("dir1", fs.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Mkdir("/dir1", 0o755)

@@ -19,7 +19,6 @@ package fake
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -153,7 +152,7 @@ func (o Builder) getEntryRelativeImpl(baseDir *Entry, relativePath string, follo
 
 	if tail == "" {
 		// This is the last segment of the path (file itself)
-		if followLink && child.Mode()&os.ModeSymlink != 0 {
+		if followLink && child.Mode()&fs.ModeSymlink != 0 {
 			// follow last symlink
 			if child.linkReader == nil {
 				return nil, fmt.Errorf("don't have link reader")
@@ -170,7 +169,7 @@ func (o Builder) getEntryRelativeImpl(baseDir *Entry, relativePath string, follo
 		return child, nil
 	}
 
-	if child.Mode()&os.ModeSymlink != 0 {
+	if child.Mode()&fs.ModeSymlink != 0 {
 		// child.parent is not nil, because symlink can't be root
 		var err error
 		if child.linkReader == nil {

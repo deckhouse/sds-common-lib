@@ -17,9 +17,9 @@ limitations under the License.
 package fake_test
 
 import (
-	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,7 +36,7 @@ func TestChdir(t *testing.T) {
 	// /
 	// └── a
 
-	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")
@@ -74,7 +74,7 @@ func TestGetwd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "/", wd, "Working directory is wrong")
 
-	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", os.ModeDir)
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
 
 	err = fsys.Chdir("/a")

@@ -17,9 +17,9 @@ limitations under the License.
 package fake_test
 
 import (
-	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,7 +39,7 @@ func TestReadDirBasic(t *testing.T) {
 	//     ├── file1
 	//     └── file2
 
-	dir, err := builder.Root().CreateChild("dir", os.ModeDir)
+	dir, err := builder.Root().CreateChild("dir", fs.ModeDir)
 	assert.NoError(t, err)
 
 	names := []string{"file1", "file2"}

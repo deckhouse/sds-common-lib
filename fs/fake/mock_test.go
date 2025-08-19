@@ -17,9 +17,9 @@ limitations under the License.
 package fake_test
 
 import (
-	"os"
 	"testing"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,7 +46,7 @@ func TestGetFileRootSimple(t *testing.T) {
 
 // Nested lookup directory with absolute path ("/a/b/file.txt")
 func TestGetFileRootNested(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -54,21 +54,21 @@ func TestGetFileRootNested(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := dirA.CreateChild("b", os.ModeDir)
+	dirB, err := dirA.CreateChild("b", fs.ModeDir)
 	assert.NoError(t, err)
 	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetEntry("/a/b/file.txt")
+	got, err := fake.BuilderFor(fsys).GetEntry("/a/b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
 }
 
 // Positive: lookup when current directory is not the root (curdir = /a)
 func TestGetFileNonRootCurdir(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -76,22 +76,22 @@ func TestGetFileNonRootCurdir(t *testing.T) {
 	//     └── b
 	//         └── file.txt
 
-	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := dirA.CreateChild("b", os.ModeDir)
+	dirB, err := dirA.CreateChild("b", fs.ModeDir)
 	assert.NoError(t, err)
 	fileC, err := dirB.CreateChild("file.txt")
 	assert.NoError(t, err)
 
-	fake.BuilderFor(fs).SetWdFile(dirA)
-	got, err := fake.BuilderFor(fs).GetEntry("b/file.txt")
+	fake.BuilderFor(fsys).SetWdFile(dirA)
+	got, err := fake.BuilderFor(fsys).GetEntry("b/file.txt")
 	assert.NoError(t, err)
 	assert.Same(t, fileC, got, "Invalid file returned")
 }
 
 // Positive: relative path with "../"
 func TestGetFileRelativeUpPath(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -100,43 +100,43 @@ func TestGetFileRelativeUpPath(t *testing.T) {
 	//     └── foo
 
 	// Create /a and /b directories
-	dirA, err := fake.BuilderFor(fs).Root().CreateChild("a", os.ModeDir)
+	dirA, err := fake.BuilderFor(fsys).Root().CreateChild("a", fs.ModeDir)
 	assert.NoError(t, err)
-	dirB, err := fake.BuilderFor(fs).Root().CreateChild("b", os.ModeDir)
+	dirB, err := fake.BuilderFor(fsys).Root().CreateChild("b", fs.ModeDir)
 	assert.NoError(t, err)
 	target, err := dirB.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Current directory set to /a
-	fake.BuilderFor(fs).SetWdFile(dirA)
+	fake.BuilderFor(fsys).SetWdFile(dirA)
 
-	got, err := fake.BuilderFor(fs).GetEntry("../b/foo")
+	got, err := fake.BuilderFor(fsys).GetEntry("../b/foo")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Relative up-path resolution failed")
 }
 
 // Positive: symlink pointing to a regular file in the same directory
 func TestGetFileSymlinkSimple(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// ├── target.txt
 	// └── link.txt -> /target.txt
 
-	target, err := fake.BuilderFor(fs).Root().CreateChild("target.txt")
+	target, err := fake.BuilderFor(fsys).Root().CreateChild("target.txt")
 	assert.NoError(t, err)
-	_, err = fake.BuilderFor(fs).Root().CreateChild("link.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("link.txt", fs.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetEntry("link.txt")
+	got, err := fake.BuilderFor(fsys).GetEntry("link.txt")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Symlink did not resolve correctly")
 }
 
 // Positive: recursive symlink: link2 -> link1 -> target
 func TestGetFileSymlinkRecursive(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -144,23 +144,23 @@ func TestGetFileSymlinkRecursive(t *testing.T) {
 	// ├── link1.txt -> /target.txt
 	// └── link2.txt -> /link1.txt
 
-	target, err := fake.BuilderFor(fs).Root().CreateChild("target.txt")
+	target, err := fake.BuilderFor(fsys).Root().CreateChild("target.txt")
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fs).Root().CreateChild("link1.txt", os.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("link1.txt", fs.ModeSymlink, fake.LinkReader{Target: "/target.txt"})
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fs).Root().CreateChild("link2.txt", os.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("link2.txt", fs.ModeSymlink, fake.LinkReader{Target: "/link1.txt"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetEntry("link2.txt")
+	got, err := fake.BuilderFor(fsys).GetEntry("link2.txt")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Recursive symlink did not resolve correctly")
 }
 
 // Positive: symlink directory resolution: /link/foo where /link -> /bar
 func TestGetFileSymlinkDirectory(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -169,23 +169,23 @@ func TestGetFileSymlinkDirectory(t *testing.T) {
 	// └── link -> /bar
 
 	// Create /bar directory with a file foo inside
-	barDir, err := fake.BuilderFor(fs).Root().CreateChild("bar", os.ModeDir)
+	barDir, err := fake.BuilderFor(fsys).Root().CreateChild("bar", fs.ModeDir)
 	assert.NoError(t, err)
 	fooFile, err := barDir.CreateChild("foo")
 	assert.NoError(t, err)
 
 	// Create symlink /link that points to /bar
-	_, err = fake.BuilderFor(fs).Root().CreateChild("link", os.ModeSymlink, fake.LinkReader{Target: "/bar"})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("link", fs.ModeSymlink, fake.LinkReader{Target: "/bar"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetEntry("link/foo")
+	got, err := fake.BuilderFor(fsys).GetEntry("link/foo")
 	assert.NoError(t, err)
 	assert.Same(t, fooFile, got, "Directory symlink did not resolve correctly")
 }
 
 // Positive: symlink with relative path: dir1/dir2/sym -> ../target
 func TestGetFileSymlinkRelativePath(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
@@ -195,20 +195,20 @@ func TestGetFileSymlinkRelativePath(t *testing.T) {
 	//     └── sym -> ../target
 
 	// Construct /dir1/target
-	dir1, err := fake.BuilderFor(fs).Root().CreateChild("dir1", os.ModeDir)
+	dir1, err := fake.BuilderFor(fsys).Root().CreateChild("dir1", fs.ModeDir)
 	assert.NoError(t, err)
 	target, err := dir1.CreateChild("target")
 	assert.NoError(t, err)
 
 	// Construct /dir1/dir2
-	dir2, err := dir1.CreateChild("dir2", os.ModeDir)
+	dir2, err := dir1.CreateChild("dir2", fs.ModeDir)
 	assert.NoError(t, err)
 
 	// Symlink /dir1/dir2/sym that points to ../target (relative to /dir1/dir2)
-	_, err = dir2.CreateChild("sym", os.ModeSymlink, fake.LinkReader{Target: "../target"})
+	_, err = dir2.CreateChild("sym", fs.ModeSymlink, fake.LinkReader{Target: "../target"})
 	assert.NoError(t, err)
 
-	got, err := fake.BuilderFor(fs).GetEntry("dir1/dir2/sym")
+	got, err := fake.BuilderFor(fsys).GetEntry("dir1/dir2/sym")
 	assert.NoError(t, err)
 	assert.Same(t, target, got, "Relative symlink did not resolve correctly")
 }
@@ -224,16 +224,16 @@ func TestGetFileMissingFile(t *testing.T) {
 
 // Negative: broken symlink (points to non-existing file) should return an error
 func TestGetFileBrokenSymlink(t *testing.T) {
-	fs, err := fake.NewBuilder("/").Build()
+	fsys, err := fake.NewBuilder("/").Build()
 	assert.NoError(t, err)
 
 	// /
 	// └── broken.txt -> /nonexistent
 
-	_, err = fake.BuilderFor(fs).Root().CreateChild("broken.txt", os.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
+	_, err = fake.BuilderFor(fsys).Root().CreateChild("broken.txt", fs.ModeSymlink, fake.LinkReader{Target: "/nonexistent"})
 	assert.NoError(t, err)
 
-	_, err = fake.BuilderFor(fs).GetEntry("broken.txt")
+	_, err = fake.BuilderFor(fsys).GetEntry("broken.txt")
 	assert.Error(t, err)
 }
 
