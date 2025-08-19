@@ -37,8 +37,6 @@ type fileDescriptor struct {
 	ioReader io.Reader
 	ioSeeker io.Seeker
 	ioCloser io.Closer
-
-	fileSizer fs.FileSizer
 }
 
 var _ fs.File = (*fileDescriptor)(nil)
