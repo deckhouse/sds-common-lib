@@ -17,7 +17,7 @@ func TestIterToKeys(t *testing.T) {
 
 		result := IterToKeys(source)
 		var collected []int
-		for k, _ := range result {
+		for k := range result {
 			collected = append(collected, k)
 		}
 
@@ -41,7 +41,7 @@ func TestIterToKeys(t *testing.T) {
 
 		result := IterToKeys(source)
 		var collected []int
-		for k, _ := range result {
+		for k := range result {
 			collected = append(collected, k)
 		}
 

@@ -23,8 +23,7 @@ import (
 Pointers:
 
 ```go
-v := 10
-p := u.Ptr(v) // *int
+p := u.Ptr(10) // *int
 ```
 
 Errors and logging:
