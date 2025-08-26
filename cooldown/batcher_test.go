@@ -10,7 +10,7 @@ import (
 func TestBatcher_NoCooldown(t *testing.T) {
 	batchSize := 100
 
-	batcher := NewBatcher(nil)
+	batcher := NewBatcher[any](nil)
 
 	for i := range batchSize {
 		err := batcher.Add(i)

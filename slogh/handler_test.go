@@ -32,7 +32,7 @@ import (
 )
 
 func TestDefaultLoggerLevelsEnabled(t *testing.T) {
-	log := slog.New(NewHandler(Config{}))
+	log := slog.New(&Handler{})
 
 	ctx := context.Background()
 
@@ -58,7 +58,6 @@ func TestDefaultLoggerLevelsEnabled(t *testing.T) {
 
 func TestDefaultLogger(t *testing.T) {
 	t.Run("debug", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			nil,
@@ -72,7 +71,6 @@ func TestDefaultLogger(t *testing.T) {
 	})
 
 	t.Run("info", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			nil,
@@ -88,7 +86,6 @@ func TestDefaultLogger(t *testing.T) {
 	})
 
 	t.Run("warn", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			nil,
@@ -104,7 +101,6 @@ func TestDefaultLogger(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			nil,
@@ -122,11 +118,10 @@ func TestDefaultLogger(t *testing.T) {
 
 func TestCustomizedLogger(t *testing.T) {
 	t.Run("LevelDebug", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Level: LevelDebug})
+				must(UpdateConfig(Config{Level: LevelDebug}))
 			},
 			func(log *slog.Logger) {
 				log.WithGroup("a").WithGroup("b").Debug("d='a.b.c'", "c", 2.0)
@@ -139,7 +134,7 @@ func TestCustomizedLogger(t *testing.T) {
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Level: LevelDebug})
+				must(UpdateConfig(Config{Level: LevelDebug}))
 			},
 			func(log *slog.Logger) {
 				log.With("b", 6).Error("e='a'", "a", 5)
@@ -153,11 +148,10 @@ func TestCustomizedLogger(t *testing.T) {
 	})
 
 	t.Run("LevelError", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Level: LevelError})
+				must(UpdateConfig(Config{Level: LevelError}))
 			},
 			func(log *slog.Logger) {
 				log.Debug("x", "a", 5)
@@ -168,7 +162,7 @@ func TestCustomizedLogger(t *testing.T) {
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Level: LevelError})
+				must(UpdateConfig(Config{Level: LevelError}))
 			},
 			func(log *slog.Logger) {
 				log.With("b", 6).Error("e='a'", "a", 5)
@@ -182,11 +176,10 @@ func TestCustomizedLogger(t *testing.T) {
 	})
 
 	t.Run("level info-100", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Level: LevelInfo - 100})
+				must(UpdateConfig(Config{Level: LevelInfo - 100}))
 			},
 			func(log *slog.Logger) {
 				log.Log(context.Background(), slog.LevelInfo-100, "x")
@@ -198,11 +191,10 @@ func TestCustomizedLogger(t *testing.T) {
 	})
 
 	t.Run("CallsiteDisabled", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Callsite: CallsiteDisabled})
+				must(UpdateConfig(Config{Callsite: CallsiteDisabled}))
 			},
 			func(log *slog.Logger) {
 				log.Info("x")
@@ -212,11 +204,10 @@ func TestCustomizedLogger(t *testing.T) {
 	})
 
 	t.Run("RenderDisabled", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{Render: RenderDisabled})
+				must(UpdateConfig(Config{Render: RenderDisabled}))
 			},
 			func(log *slog.Logger) {
 				log.With("b", 6).Info("a='a', b='b'", "a", 5)
@@ -230,11 +221,10 @@ func TestCustomizedLogger(t *testing.T) {
 	})
 
 	t.Run("StringValuesDisabled", func(t *testing.T) {
-		t.Parallel()
 		testLog(
 			t,
 			func(h *Handler) {
-				h.UpdateConfig(Config{StringValues: StringValuesDisabled})
+				must(UpdateConfig(Config{StringValues: StringValuesDisabled}))
 			},
 			func(log *slog.Logger) {
 				log.With("b", 6.0).Info("a='a', b='b'", "a", 5.0)
@@ -249,21 +239,17 @@ func TestCustomizedLogger(t *testing.T) {
 }
 
 func TestHandlerConfigMarshaling(t *testing.T) {
-	t.Parallel()
-
-	h := NewHandler(Config{})
-
 	someCfg := Config{Level: LevelWarn, Format: FormatText, Callsite: CallsiteDisabled}
 
 	data := someCfg.MarshalData()
 
 	// repeating a few times won't harm
-	for i := 0; i < 5; i++ {
-		if err := h.UpdateConfigData(data); err != nil {
+	for range 5 {
+		if err := UpdateConfigData(data); err != nil {
 			t.Fatal(err)
 		}
 
-		cfg := h.Config()
+		cfg := loadInitializedConfig()
 
 		if cfg.Format != FormatText {
 			t.Fatalf("expected Format to be %s, got %s", FormatText, cfg.Format)
@@ -283,8 +269,6 @@ func TestHandlerConfigMarshaling(t *testing.T) {
 }
 
 func TestFileWatcher(t *testing.T) {
-	t.Parallel()
-
 	// should be small (<=1s), but increase this to prevent timeouts when debugging
 	timeoutMultiplier := 2 * time.Second
 
@@ -300,7 +284,11 @@ func TestFileWatcher(t *testing.T) {
 	}
 
 	sb := &strings.Builder{}
-	h := NewHandler(Config{logDst: sb})
+	h := &Handler{}
+
+	LogDst = sb
+	defer func() { LogDst = os.Stderr }()
+
 	log := slog.New(h)
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -327,15 +315,21 @@ func TestFileWatcher(t *testing.T) {
 	})
 
 	retryInterval := time.Millisecond * 200
+
 	go func() {
-		RunConfigFileWatcher(
+		ownLog := slog.New(
+			slog.NewTextHandler(
+				ownLogMock,
+				&slog.HandlerOptions{Level: slog.LevelDebug},
+			),
+		)
+
+		runConfigFileWatcher(
 			ctx,
-			h.UpdateConfigData,
+			UpdateConfigData,
 			&ConfigFileWatcherOptions{
-				FilePath: configPath,
-				OwnLogger: slog.New(
-					NewHandler(Config{Level: LevelDebug, logDst: ownLogMock}),
-				).With("logger", "FileWatcher"),
+				FilePath:      configPath,
+				OwnLogger:     ownLog.With("logger", "FileWatcher"),
 				RetryInterval: &retryInterval,
 			},
 		)
@@ -364,6 +358,10 @@ func TestFileWatcher(t *testing.T) {
 		t.Fatalf("expected Debug level to be enabled")
 	}
 	sb.Reset()
+
+	// before updating the config, let's clone the logger to check that the new
+	// one will receive updates
+	log = log.With("v", 2)
 
 	// append to file
 	if err := os.WriteFile(
@@ -397,7 +395,7 @@ func TestFileWatcher(t *testing.T) {
 	subscriptionLostTimeout := timeoutMultiplier
 	tctx, tctxCancel = context.WithTimeout(ctx, subscriptionLostTimeout)
 	t.Cleanup(tctxCancel)
-	if found := ownLogMock.WaitForString(tctx, "subscription lost: reloading watcher"); !found {
+	if found := ownLogMock.WaitForString(tctx, "no such file or directory"); !found {
 		t.Fatalf("expected watcher to report lost subscription in %s, but it didn't", subscriptionLostTimeout.String())
 	}
 
@@ -437,9 +435,11 @@ func testLog(
 	t.Helper()
 
 	sb := &strings.Builder{}
-	h := NewHandler(Config{
-		logDst: sb,
-	})
+
+	LogDst = sb
+	defer func() { LogDst = os.Stderr }()
+
+	h := &Handler{}
 	log := slog.New(h)
 
 	msg := map[string]any{}
@@ -499,4 +499,10 @@ func assertMsg(m string) msgAssert {
 
 func assertSource() msgAssert {
 	return assertAttrKey(slog.SourceKey)
+}
+
+func must(err error) {
+	if err != nil {
+		panic("unexpected error: " + err.Error())
+	}
 }

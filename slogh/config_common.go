@@ -23,7 +23,7 @@ const (
 	DataKeyFormat       = "format"
 	DataKeyCallsite     = "callsite"
 	DataKeyRender       = "render"
-	DataKeyStringValues = "stringValues"
+	DataKeyStringValues = "stringvalues"
 )
 
 type prop interface {

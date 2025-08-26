@@ -6,36 +6,39 @@ import (
 	"sync"
 )
 
-type BatchAppend func(batch []any, newItem any) []any
+type Batcher = BatcherTyped[any]
+type BatchAppend = BatchAppendTyped[any]
 
-// Buffer, which is populated via [Batcher.Add] and consumed with
-// [Batcher.ConsumeWithCooldown]. Allows batching items (see batchAppend in
+type BatchAppendTyped[T any] func(batch []T, newItem T) []T
+
+// Buffer, which is populated via [BatcherTyped.Add] and consumed with
+// [BatcherTyped.ConsumeWithCooldown]. Allows batching items (see batchAppend in
 // [NewBatcher]) and consuming them in time-controlled way - with cooldown.
-type Batcher struct {
+type BatcherTyped[T any] struct {
 	mu          *sync.Mutex
 	cond        *sync.Cond
-	batchAppend BatchAppend
-	items       []any
+	batchAppend BatchAppendTyped[T]
+	items       []T
 }
 
-// Creates new [*Batcher] with batchAppend, which allows modifying current batch
+// Creates new [*BatcherTyped] with batchAppend, which allows modifying current batch
 // buffer before consumer takes it.
-func NewBatcher(batchAppend BatchAppend) *Batcher {
+func NewBatcher[T any](batchAppend BatchAppendTyped[T]) *BatcherTyped[T] {
 	if batchAppend == nil {
-		batchAppend = func(batch []any, newItem any) []any {
+		batchAppend = func(batch []T, newItem T) []T {
 			return append(batch, newItem)
 		}
 	}
 
 	mu := &sync.Mutex{}
-	return &Batcher{
+	return &BatcherTyped[T]{
 		mu:          mu,
 		cond:        sync.NewCond(mu),
 		batchAppend: batchAppend,
 	}
 }
 
-func (b *Batcher) Add(newItem any) error {
+func (b *BatcherTyped[T]) Add(newItem T) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -49,12 +52,12 @@ func (b *Batcher) Add(newItem any) error {
 	return nil
 }
 
-// See [Batcher]
-func (b *Batcher) ConsumeWithCooldown(
+// See [BatcherTyped]
+func (b *BatcherTyped[T]) ConsumeWithCooldown(
 	ctx context.Context,
 	cooldown Cooldown,
-) iter.Seq[[]any] {
-	return func(yield func([]any) bool) {
+) iter.Seq[[]T] {
+	return func(yield func([]T) bool) {
 		for {
 			items, err := b.waitForItem(ctx)
 
@@ -77,7 +80,7 @@ func (b *Batcher) ConsumeWithCooldown(
 	}
 }
 
-func (b *Batcher) waitForItem(ctx context.Context) ([]any, error) {
+func (b *BatcherTyped[T]) waitForItem(ctx context.Context) ([]T, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -115,8 +118,8 @@ func (b *Batcher) waitForItem(ctx context.Context) ([]any, error) {
 	return b.takeBatch(), nil
 }
 
-func (b *Batcher) takeBatch() []any {
-	res := make([]any, len(b.items))
+func (b *BatcherTyped[T]) takeBatch() []T {
+	res := make([]T, len(b.items))
 	copy(res, b.items)
 
 	// free elements, but keep the array, which is managed by batchAppend
