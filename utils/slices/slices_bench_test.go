@@ -1,4 +1,4 @@
-package utils
+package slices
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ func BenchmarkSliceFind_Miss(b *testing.B) {
 			data := makeInts(n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchResultIntPtr = SliceFind(data, func(v *int) bool { return *v == -1 })
+				benchResultIntPtr = Find(data, func(v *int) bool { return *v == -1 })
 			}
 		})
 	}
@@ -75,7 +75,7 @@ func BenchmarkSliceFind_DeviceMiss(b *testing.B) {
 			data := makeDevices(n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchResultDevicePtr = SliceFind(data, func(v *Device) bool { return v.Volume == -1 })
+				benchResultDevicePtr = Find(data, func(v *Device) bool { return v.Volume == -1 })
 			}
 		})
 	}

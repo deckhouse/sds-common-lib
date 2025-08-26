@@ -1,10 +1,12 @@
-package utils
+package sync
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
+
+	uerrors "github.com/deckhouse/sds-common-lib/utils/errors"
 )
 
 // ErrUnexpectedReturnWithoutError indicates that fn returned a nil error unexpectedly.
@@ -40,7 +42,7 @@ func GoForever(
 			cancel(fmt.Errorf("%s: %w", goroutineName, err))
 		}()
 
-		defer RecoverPanicToErr(&err)
+		defer uerrors.RecoverPanicToErr(&err)
 
 		log.Info("started")
 

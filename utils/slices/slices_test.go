@@ -1,8 +1,10 @@
-package utils
+package slices
 
 import (
 	"fmt"
 	"testing"
+
+	. "github.com/deckhouse/sds-common-lib/utils"
 )
 
 func TestSliceFind(t *testing.T) {
@@ -56,7 +58,7 @@ func TestSliceFind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SliceFind(tt.slice, tt.findFunc)
+			result := Find(tt.slice, tt.findFunc)
 			if result == nil && tt.expected == nil {
 				return
 			}
@@ -122,7 +124,7 @@ func TestSliceFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SliceFilter(tt.slice, tt.filterFunc)
+			result := Filter(tt.slice, tt.filterFunc)
 			var collected []int
 			for v := range result {
 				collected = append(collected, *v)
@@ -150,7 +152,7 @@ func TestSliceMap(t *testing.T) {
 		}
 		expected := []string{"num_1", "num_2", "num_3", "num_4", "num_5"}
 
-		result := SliceMap(slice, mapFunc)
+		result := Map(slice, mapFunc)
 		var collected []string
 		for v := range result {
 			collected = append(collected, v)
@@ -175,7 +177,7 @@ func TestSliceMap(t *testing.T) {
 		}
 		expected := []int{2, 4, 6}
 
-		result := SliceMap(slice, mapFunc)
+		result := Map(slice, mapFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -200,7 +202,7 @@ func TestSliceMap(t *testing.T) {
 		}
 		expected := []string{}
 
-		result := SliceMap(slice, mapFunc)
+		result := Map(slice, mapFunc)
 		var collected []string
 		for v := range result {
 			collected = append(collected, v)
@@ -246,7 +248,7 @@ func TestSliceIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SliceIndex(tt.slice, tt.indexFunc)
+			result := Index(tt.slice, tt.indexFunc)
 			collected := make(map[string]int)
 			for k, v := range result {
 				collected[k] = *v

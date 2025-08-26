@@ -1,4 +1,4 @@
-package utils
+package iter
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ func TestIterToKeys(t *testing.T) {
 			}
 		}
 
-		result := IterToKeys(source)
+		result := SeqToSeq2Keys(source)
 		var collected []int
 		for k := range result {
 			collected = append(collected, k)
@@ -39,7 +39,7 @@ func TestIterToKeys(t *testing.T) {
 			// No values yielded
 		}
 
-		result := IterToKeys(source)
+		result := SeqToSeq2Keys(source)
 		var collected []int
 		for k := range result {
 			collected = append(collected, k)
@@ -65,7 +65,7 @@ func TestIterMap(t *testing.T) {
 			return fmt.Sprintf("num_%d", v)
 		}
 
-		result := IterMap(source, mapFunc)
+		result := SeqMap(source, mapFunc)
 		var collected []string
 		for v := range result {
 			collected = append(collected, v)
@@ -97,7 +97,7 @@ func TestIterMap(t *testing.T) {
 			return v * 2
 		}
 
-		result := IterMap(source, mapFunc)
+		result := SeqMap(source, mapFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -125,7 +125,7 @@ func TestIterMap(t *testing.T) {
 			return fmt.Sprintf("num_%d", v)
 		}
 
-		result := IterMap(source, mapFunc)
+		result := SeqMap(source, mapFunc)
 		var collected []string
 		for v := range result {
 			collected = append(collected, v)
@@ -144,7 +144,7 @@ func TestIterFilter(t *testing.T) {
 			return v%2 == 0
 		}
 
-		result := IterFilter(slice, filterFunc)
+		result := SeqFilter(slice, filterFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -169,7 +169,7 @@ func TestIterFilter(t *testing.T) {
 			return v > 3
 		}
 
-		result := IterFilter(slice, filterFunc)
+		result := SeqFilter(slice, filterFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -194,7 +194,7 @@ func TestIterFilter(t *testing.T) {
 			return v > 10
 		}
 
-		result := IterFilter(slice, filterFunc)
+		result := SeqFilter(slice, filterFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -211,7 +211,7 @@ func TestIterFilter(t *testing.T) {
 			return v > 0
 		}
 
-		result := IterFilter(slice, filterFunc)
+		result := SeqFilter(slice, filterFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)
@@ -236,7 +236,7 @@ func TestIterFilter(t *testing.T) {
 			return v > 0
 		}
 
-		result := IterFilter(slice, filterFunc)
+		result := SeqFilter(slice, filterFunc)
 		var collected []int
 		for v := range result {
 			collected = append(collected, v)

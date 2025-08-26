@@ -1,4 +1,4 @@
-package utils
+package sync
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
+
+	uerrors "github.com/deckhouse/sds-common-lib/utils/errors"
 )
 
 func TestGoForever(t *testing.T) {
@@ -37,7 +39,7 @@ func TestGoForever(t *testing.T) {
 		if !errors.Is(cause, testErr) {
 			t.Errorf("expected cause to wrap original error")
 		}
-		if errors.Is(cause, ErrRecoveredFromPanic) {
+		if errors.Is(cause, uerrors.ErrRecoveredFromPanic) {
 			t.Errorf("did not expect ErrRecoveredFromPanic for non-panic error")
 		}
 	})
@@ -68,7 +70,7 @@ func TestGoForever(t *testing.T) {
 		if !errors.Is(cause, ErrUnexpectedReturnWithoutError) {
 			t.Errorf("expected ErrUnexpectedReturnWithoutError in cause chain")
 		}
-		if errors.Is(cause, ErrRecoveredFromPanic) {
+		if errors.Is(cause, uerrors.ErrRecoveredFromPanic) {
 			t.Errorf("did not expect ErrRecoveredFromPanic for nil-return case")
 		}
 	})
@@ -96,7 +98,7 @@ func TestGoForever(t *testing.T) {
 			t.Error("expected context cause to be set")
 		}
 
-		if !errors.Is(cause, ErrRecoveredFromPanic) {
+		if !errors.Is(cause, uerrors.ErrRecoveredFromPanic) {
 			t.Errorf("expected ErrRecoveredFromPanic in cause chain")
 		}
 	})
@@ -126,7 +128,7 @@ func TestGoForever(t *testing.T) {
 			t.Error("expected context cause to be set")
 		}
 
-		if !errors.Is(cause, ErrRecoveredFromPanic) {
+		if !errors.Is(cause, uerrors.ErrRecoveredFromPanic) {
 			t.Errorf("expected ErrRecoveredFromPanic in cause chain")
 		}
 		if !errors.Is(cause, panicErr) {
@@ -157,7 +159,7 @@ func TestGoForever(t *testing.T) {
 			t.Error("expected context cause to be set")
 		}
 
-		if !errors.Is(cause, ErrRecoveredFromPanic) {
+		if !errors.Is(cause, uerrors.ErrRecoveredFromPanic) {
 			t.Errorf("expected ErrRecoveredFromPanic in cause chain")
 		}
 	})

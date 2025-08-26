@@ -1,4 +1,4 @@
-package utils
+package maps
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ func TestMapEnsureAndSet(t *testing.T) {
 	t.Run("set value in existing map", func(t *testing.T) {
 		m := map[string]int{"existing": 1}
 
-		MapEnsureAndSet(&m, "new_key", 42)
+		EnsureAndSet(&m, "new_key", 42)
 
 		if m["new_key"] != 42 {
 			t.Errorf("expected value 42 for key 'new_key', got %d", m["new_key"])
@@ -21,7 +21,7 @@ func TestMapEnsureAndSet(t *testing.T) {
 	t.Run("set value in nil map", func(t *testing.T) {
 		var m map[string]int
 
-		MapEnsureAndSet(&m, "new_key", 42)
+		EnsureAndSet(&m, "new_key", 42)
 
 		if m == nil {
 			t.Error("expected map to be initialized, got nil")
@@ -34,9 +34,9 @@ func TestMapEnsureAndSet(t *testing.T) {
 	t.Run("set multiple values", func(t *testing.T) {
 		var m map[string]int
 
-		MapEnsureAndSet(&m, "key1", 1)
-		MapEnsureAndSet(&m, "key2", 2)
-		MapEnsureAndSet(&m, "key3", 3)
+		EnsureAndSet(&m, "key1", 1)
+		EnsureAndSet(&m, "key2", 2)
+		EnsureAndSet(&m, "key3", 3)
 
 		expected := map[string]int{
 			"key1": 1,
@@ -54,7 +54,7 @@ func TestMapEnsureAndSet(t *testing.T) {
 	t.Run("overwrite existing value", func(t *testing.T) {
 		m := map[string]int{"existing": 1}
 
-		MapEnsureAndSet(&m, "existing", 999)
+		EnsureAndSet(&m, "existing", 999)
 
 		if m["existing"] != 999 {
 			t.Errorf("expected value 999 for key 'existing', got %d", m["existing"])
