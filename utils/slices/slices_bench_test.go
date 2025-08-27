@@ -23,13 +23,13 @@ func makeInts(n int) []int {
 	}
 	return s
 }
-func BenchmarkSliceFind_Miss(b *testing.B) {
+func BenchmarkSliceValue_Miss(b *testing.B) {
 	for _, n := range benchSizes {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeInts(n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchResultIntPtr = Find(data, func(v *int) bool { return *v == -1 })
+				benchResultIntPtr = Value(data, func(v *int) bool { return *v == -1 })
 			}
 		})
 	}
@@ -69,13 +69,13 @@ func makeDevices(n int) []Device {
 }
 
 // Miss-only benchmarks with zero-valued Device entries across sizes
-func BenchmarkSliceFind_DeviceMiss(b *testing.B) {
+func BenchmarkSliceValue_DeviceMiss(b *testing.B) {
 	for _, n := range benchSizes {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeDevices(n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchResultDevicePtr = Find(data, func(v *Device) bool { return v.Volume == -1 })
+				benchResultDevicePtr = Value(data, func(v *Device) bool { return v.Volume == -1 })
 			}
 		})
 	}

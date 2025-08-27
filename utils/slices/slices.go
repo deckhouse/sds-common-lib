@@ -2,8 +2,8 @@ package slices
 
 import "iter"
 
-// Find returns a pointer to the first element for which f returns true.
-func Find[T any](s []T, f func(v *T) bool) *T {
+// Value returns a pointer to the first element for which f returns true.
+func Value[T any](s []T, f func(v *T) bool) *T {
 	for i := range s {
 		if f(&s[i]) {
 			return &s[i]
@@ -37,11 +37,11 @@ func Map[T any, U any](s []T, f func(v *T) U) iter.Seq[U] {
 	}
 }
 
-// Index yields an index built from s using indexFn, producing key to *V pairs.
-func Index[K comparable, V any](s []V, indexFn func(v *V) K) iter.Seq2[K, *V] {
+// KeyBy yields an index built from s using keyFn, producing key to *V pairs.
+func KeyBy[K comparable, V any](s []V, keyFn func(v *V) K) iter.Seq2[K, *V] {
 	return func(yield func(K, *V) bool) {
 		for i := range s {
-			k := indexFn(&s[i])
+			k := keyFn(&s[i])
 			if !yield(k, &s[i]) {
 				return
 			}

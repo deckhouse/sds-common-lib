@@ -7,17 +7,17 @@ import (
 	. "github.com/deckhouse/sds-common-lib/utils"
 )
 
-func TestSliceFind(t *testing.T) {
+func TestSliceValue(t *testing.T) {
 	tests := []struct {
-		name     string
-		slice    []int
-		findFunc func(v *int) bool
-		expected *int
+		name      string
+		slice     []int
+		valueFunc func(v *int) bool
+		expected  *int
 	}{
 		{
 			name:  "find existing element",
 			slice: []int{1, 2, 3, 4, 5},
-			findFunc: func(v *int) bool {
+			valueFunc: func(v *int) bool {
 				return *v == 3
 			},
 			expected: Ptr(3),
@@ -25,7 +25,7 @@ func TestSliceFind(t *testing.T) {
 		{
 			name:  "find first element",
 			slice: []int{1, 2, 3, 4, 5},
-			findFunc: func(v *int) bool {
+			valueFunc: func(v *int) bool {
 				return *v == 1
 			},
 			expected: Ptr(1),
@@ -33,7 +33,7 @@ func TestSliceFind(t *testing.T) {
 		{
 			name:  "find last element",
 			slice: []int{1, 2, 3, 4, 5},
-			findFunc: func(v *int) bool {
+			valueFunc: func(v *int) bool {
 				return *v == 5
 			},
 			expected: Ptr(5),
@@ -41,7 +41,7 @@ func TestSliceFind(t *testing.T) {
 		{
 			name:  "element not found",
 			slice: []int{1, 2, 3, 4, 5},
-			findFunc: func(v *int) bool {
+			valueFunc: func(v *int) bool {
 				return *v == 10
 			},
 			expected: nil,
@@ -49,7 +49,7 @@ func TestSliceFind(t *testing.T) {
 		{
 			name:  "empty slice",
 			slice: []int{},
-			findFunc: func(v *int) bool {
+			valueFunc: func(v *int) bool {
 				return *v == 1
 			},
 			expected: nil,
@@ -58,7 +58,7 @@ func TestSliceFind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Find(tt.slice, tt.findFunc)
+			result := Value(tt.slice, tt.valueFunc)
 			if result == nil && tt.expected == nil {
 				return
 			}
@@ -248,7 +248,7 @@ func TestSliceIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Index(tt.slice, tt.indexFunc)
+			result := KeyBy(tt.slice, tt.indexFunc)
 			collected := make(map[string]int)
 			for k, v := range result {
 				collected[k] = *v
