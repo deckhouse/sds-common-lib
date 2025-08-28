@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+
+	"github.com/deckhouse/sds-common-lib/utils/iter"
 )
 
 var benchSizes = []int{1_000, 10_000, 100_000, 1_000_000}
@@ -23,13 +25,14 @@ func makeInts(n int) []int {
 	}
 	return s
 }
-func BenchmarkSliceValue_Miss(b *testing.B) {
+
+func BenchmarkPtrs_Miss(b *testing.B) {
 	for _, n := range benchSizes {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeInts(n)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				benchResultIntPtr = Value(data, func(v *int) bool { return *v == -1 })
+			for b.Loop() {
+				benchResultIntPtr, _ = iter.Find(Ptrs(data), func(v *int) bool { return *v == -1 })
 			}
 		})
 	}
@@ -40,7 +43,7 @@ func BenchmarkIndexFunc_Miss(b *testing.B) {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeInts(n)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				benchResultIndexInt = slices.IndexFunc(data, func(v int) bool { return v == -1 })
 			}
 		})
@@ -69,13 +72,13 @@ func makeDevices(n int) []Device {
 }
 
 // Miss-only benchmarks with zero-valued Device entries across sizes
-func BenchmarkSliceValue_DeviceMiss(b *testing.B) {
+func BenchmarkPtrs_DeviceMiss(b *testing.B) {
 	for _, n := range benchSizes {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeDevices(n)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				benchResultDevicePtr = Value(data, func(v *Device) bool { return v.Volume == -1 })
+			for b.Loop() {
+				benchResultDevicePtr, _ = iter.Find(Ptrs(data), func(v *Device) bool { return v.Volume == -1 })
 			}
 		})
 	}
@@ -86,7 +89,7 @@ func BenchmarkIndexFunc_DeviceMiss(b *testing.B) {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
 			data := makeDevices(n)
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				benchResultIndexDevice = slices.IndexFunc(data, func(v Device) bool { return v.Volume == -1 })
 			}
 		})
