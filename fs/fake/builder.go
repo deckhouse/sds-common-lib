@@ -61,13 +61,14 @@ func (b *Builder) WithFile(path string, args ...any) *Builder {
 // instead of nested fake.NewFile() calls.
 //
 // Example:
-//   builder.WithFileAtPath("sys/block/dm-1/dm/name", fake.RWContentFromString("ubuntu--vg-ubuntu--lv"))
-//   builder.WithFileAtPath("dev/mapper/ubuntu--vg-ubuntu--lv", fake.NewFile("ubuntu--vg-ubuntu--lv"))
+//
+//	builder.WithFileAtPath("sys/block/dm-1/dm/name", fake.RWContentFromString("ubuntu--vg-ubuntu--lv"))
+//	builder.WithFileAtPath("dev/mapper/ubuntu--vg-ubuntu--lv", fake.NewFile("ubuntu--vg-ubuntu--lv"))
 func (b *Builder) WithFileAtPath(path string, args ...any) *Builder {
 	if b.OS != nil {
 		// Extract directory path
 		dirPath := filepath.Dir(path)
-		
+
 		// Skip if we're creating a file in the root directory
 		if dirPath != "." && dirPath != "/" {
 			// Create parent directories recursively
@@ -76,7 +77,7 @@ func (b *Builder) WithFileAtPath(path string, args ...any) *Builder {
 				return b
 			}
 		}
-		
+
 		// Create the file
 		if _, err := b.CreateEntry(path, args...); err != nil {
 			b.err = errors.Join(b.err, err)
