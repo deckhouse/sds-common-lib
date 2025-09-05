@@ -1,6 +1,6 @@
 module github.com/deckhouse/sds-common-lib
 
-go 1.24.5
+go 1.24.4
 
 toolchain go1.24.6
 

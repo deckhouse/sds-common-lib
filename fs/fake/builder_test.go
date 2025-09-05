@@ -247,4 +247,134 @@ var _ = Describe("builder", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(n).To(BeEquivalentTo(len(myString)))
 	})
+
+	Describe("WithFileAtPath", func() {
+		It("should create a file with content at a nested path", func() {
+			content := "test content"
+			builder.WithFileAtPath("dir1/dir2/file.txt", fake.RWContentFromString(content))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the file exists and has correct content
+			file, err := fsys.Open("dir1/dir2/file.txt")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, len(content))
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(n).To(BeEquivalentTo(len(content)))
+			Expect(string(p)).To(Equal(content))
+		})
+
+		It("should create a directory at a nested path", func() {
+			builder.WithFileAtPath("sys/block/dm-1/dm", fake.NewFile("dm"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the directory exists
+			file, err := fsys.Open("sys/block/dm-1/dm")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(file).ToNot(BeNil())
+		})
+
+		It("should create multiple files in the same directory structure", func() {
+			builder.WithFileAtPath("etc/kubernetes/manifests/pod1.yaml", fake.RWContentFromString("apiVersion: v1"))
+			builder.WithFileAtPath("etc/kubernetes/manifests/pod2.yaml", fake.RWContentFromString("apiVersion: v1"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify both files exist
+			file1, err := fsys.Open("etc/kubernetes/manifests/pod1.yaml")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(file1).ToNot(BeNil())
+
+			file2, err := fsys.Open("etc/kubernetes/manifests/pod2.yaml")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(file2).ToNot(BeNil())
+		})
+
+		It("should create a file in the root directory", func() {
+			builder.WithFileAtPath("rootfile.txt", fake.RWContentFromString("root content"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			file, err := fsys.Open("rootfile.txt")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, 12)
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal("root content"))
+		})
+
+		It("should handle deep nested paths", func() {
+			deepPath := "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/file.txt"
+			content := "deep content"
+			builder.WithFileAtPath(deepPath, fake.RWContentFromString(content))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			file, err := fsys.Open(deepPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, len(content))
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal(content))
+		})
+
+		It("should work with device mapper example", func() {
+			// This is the exact use case from our scanner tests
+			builder.WithFileAtPath("sys/block/dm-1/dm/name", fake.RWContentFromString("ubuntu--vg-ubuntu--lv"))
+			builder.WithFileAtPath("dev/mapper/ubuntu--vg-ubuntu--lv", fake.NewFile("ubuntu--vg-ubuntu--lv"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the dm name file
+			file, err := fsys.Open("sys/block/dm-1/dm/name")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, 25)
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal("ubuntu--vg-ubuntu--lv"))
+
+			// Verify the mapper device
+			mapperFile, err := fsys.Open("dev/mapper/ubuntu--vg-ubuntu--lv")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mapperFile).ToNot(BeNil())
+		})
+
+		It("should handle empty path gracefully", func() {
+			// This should not panic or cause issues
+			// Empty path should be treated as root directory
+			builder.WithFileAtPath("", fake.RWContentFromString("test"))
+
+			fsys, err := builder.Build()
+			// We expect an error for empty path, but it should not panic
+			Expect(err).To(HaveOccurred())
+			Expect(fsys).ToNot(BeNil())
+		})
+
+		It("should handle single character paths", func() {
+			builder.WithFileAtPath("a", fake.RWContentFromString("single"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			file, err := fsys.Open("a")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, 6)
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal("single"))
+		})
+	})
 })
