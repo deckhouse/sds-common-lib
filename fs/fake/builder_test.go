@@ -248,7 +248,7 @@ var _ = Describe("builder", func() {
 		Expect(n).To(BeEquivalentTo(len(myString)))
 	})
 
-	Describe("WithFileAtPath", func() {
+	When("testing WithFileAtPath", func() {
 		It("should create a file with content at a nested path", func() {
 			content := "test content"
 			builder.WithFileAtPath("dir1/dir2/file.txt", fake.RWContentFromString(content))
@@ -375,6 +375,74 @@ var _ = Describe("builder", func() {
 			n, err := file.Read(p)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(p[:n])).To(Equal("single"))
+		})
+
+		It("should create files using absolute paths", func() {
+			// Test absolute path creation
+			builder.WithFileAtPath("/absolute/path/file.txt", fake.RWContentFromString("absolute content"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the file exists using absolute path
+			file, err := fsys.Open("/absolute/path/file.txt")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, 16)
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal("absolute content"))
+
+			// Also verify it can be accessed with relative path
+			file2, err := fsys.Open("absolute/path/file.txt")
+			Expect(err).ToNot(HaveOccurred())
+
+			p2 := make([]byte, 16)
+			n2, err := file2.Read(p2)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p2[:n2])).To(Equal("absolute content"))
+		})
+
+		It("should create nested files using absolute paths", func() {
+			// Test deep absolute path creation
+			builder.WithFileAtPath("/var/log/app/deep/nested/file.log", fake.RWContentFromString("log content"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify the file exists using absolute path
+			file, err := fsys.Open("/var/log/app/deep/nested/file.log")
+			Expect(err).ToNot(HaveOccurred())
+
+			p := make([]byte, 11)
+			n, err := file.Read(p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p[:n])).To(Equal("log content"))
+		})
+
+		It("should handle mixed absolute and relative paths", func() {
+			// Create files with both absolute and relative paths
+			builder.WithFileAtPath("/etc/config.conf", fake.RWContentFromString("config"))
+			builder.WithFileAtPath("local/file.txt", fake.RWContentFromString("local"))
+
+			fsys, err := builder.Build()
+			Expect(err).ToNot(HaveOccurred())
+
+			// Verify absolute path file
+			file1, err := fsys.Open("/etc/config.conf")
+			Expect(err).ToNot(HaveOccurred())
+			p1 := make([]byte, 6)
+			n1, err := file1.Read(p1)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p1[:n1])).To(Equal("config"))
+
+			// Verify relative path file
+			file2, err := fsys.Open("local/file.txt")
+			Expect(err).ToNot(HaveOccurred())
+			p2 := make([]byte, 5)
+			n2, err := file2.Read(p2)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(p2[:n2])).To(Equal("local"))
 		})
 	})
 })
