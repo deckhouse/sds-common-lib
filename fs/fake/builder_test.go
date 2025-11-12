@@ -478,6 +478,18 @@ var _ = Describe("builder", func() {
 			dirStat, err := dirFile.Stat()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(dirStat.Mode().IsDir()).To(BeTrue(), "Should be a directory")
+
+			// Verify we can access the slaves directory through the symlink
+			// /devices/virtual/block/dm-1/slaves/drbd0/slaves should resolve to
+			// /devices/virtual/block/drbd0/slaves through the symlink
+			symlinkDirFile, err := fsys.Open("/devices/virtual/block/dm-1/slaves/drbd0/slaves")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(symlinkDirFile).NotTo(BeNil())
+
+			// Verify the directory accessed through symlink is correct
+			symlinkDirStat, err := symlinkDirFile.Stat()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(symlinkDirStat.Mode().IsDir()).To(BeTrue(), "Should be a directory when accessed through symlink")
 		})
 	})
 })
