@@ -19,6 +19,7 @@ package fake_test
 import (
 	"strings"
 
+	"github.com/deckhouse/sds-common-lib/fs"
 	"github.com/deckhouse/sds-common-lib/fs/fake"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -162,7 +163,6 @@ var _ = Describe("builder", func() {
 			var err error
 			JustBeforeEach(func() {
 				os, err = builder.Build()
-
 			})
 
 			It("succeed", func() {
@@ -268,7 +268,7 @@ var _ = Describe("builder", func() {
 		})
 
 		It("should create a directory at a nested path", func() {
-			builder.WithFileAtPath("sys/block/dm-1/dm", fake.NewFile("dm"))
+			builder.WithFileAtPath("sys/block/dm-1/dm", fs.ModeDir)
 
 			fsys, err := builder.Build()
 			Expect(err).ToNot(HaveOccurred())
@@ -443,6 +443,41 @@ var _ = Describe("builder", func() {
 			n2, err := file2.Read(p2)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(p2[:n2])).To(Equal("local"))
+		})
+
+		It("should handle symlinks", func() {
+			// Create fake filesystem with device hierarchy first:
+			// /devices/virtual/block/dm-1 (LVM volume)
+			//   /devices/virtual/block/dm-1/slaves/drbd0 -> ../../drbd0 (symlink to DRBD device)
+			//   /devices/virtual/block/drbd0 (DRBD device, no slaves)
+			fsys, err := fake.NewBuilder("/").
+				WithFileAtPath("/devices/virtual/block/dm-1/slaves/drbd0", fake.LinkReader{Target: "../../drbd0"}).
+				WithFileAtPath("/devices/virtual/block/drbd0/slaves", fs.ModeDir).
+				Build()
+			Expect(err).NotTo(HaveOccurred())
+
+			// Verify the symlink exists using Lstat (doesn't follow symlinks)
+			symlinkStat, err := fsys.Lstat("/devices/virtual/block/dm-1/slaves/drbd0")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(symlinkStat).NotTo(BeNil())
+
+			// Verify the symlink mode
+			Expect(symlinkStat.Mode()&fs.ModeSymlink).NotTo(BeZero(), "File should be a symlink")
+
+			// Verify the symlink target is correct
+			target, err := fsys.ReadLink("/devices/virtual/block/dm-1/slaves/drbd0")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(target).To(Equal("../../drbd0"))
+
+			// Verify the directory exists
+			dirFile, err := fsys.Open("/devices/virtual/block/drbd0/slaves")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dirFile).NotTo(BeNil())
+
+			// Verify the directory mode
+			dirStat, err := dirFile.Stat()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dirStat.Mode().IsDir()).To(BeTrue(), "Should be a directory")
 		})
 	})
 })
