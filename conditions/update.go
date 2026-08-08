@@ -40,13 +40,59 @@ func UpdateStatus[T client.Object](
 ) error {
 	key := client.ObjectKeyFromObject(obj)
 
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+	read := func(ctx context.Context) (T, error) {
 		fresh, ok := obj.DeepCopyObject().(T)
 		if !ok {
-			return fmt.Errorf("deep copy of %T did not yield the same type", obj)
+			var zero T
+			return zero, fmt.Errorf("deep copy of %T did not yield the same type", obj)
 		}
 		if err := cl.Get(ctx, key, fresh); err != nil {
+			var zero T
+			return zero, err
+		}
+		return fresh, nil
+	}
+
+	write := func(ctx context.Context, fresh T) error {
+		return cl.Status().Update(ctx, fresh)
+	}
+
+	return UpdateStatusVia(ctx, read, write, mutate)
+}
+
+// UpdateStatusVia is [UpdateStatus] for callers that do not hold a
+// client.Client.
+//
+// Some of the modules reach Kubernetes through a repository they define and mock
+// in tests — the object never travels as a client.Object through their
+// controllers, and the method that writes its status is named after the kind.
+// Handing the read and the write in as functions lets those callers have the
+// retry, the fresh state and the skipped no-op write without giving up the
+// layering, which was the only thing keeping them on hand-rolled update loops.
+//
+// read must return state read from the API server, not a cached copy: it is
+// called again on every retry, and re-mutating a stale object is what the retry
+// exists to avoid. It must also return a non-nil object whenever it returns a
+// nil error — reporting an absent object as (nil, nil) is a common enough
+// repository idiom that the nil is checked here rather than dereferenced.
+// write persists the status subresource of what it is given.
+//
+// mutate must be free of side effects outside the object, since it can run more
+// than once, and must cope with a nil status pointer.
+func UpdateStatusVia[T client.Object](
+	ctx context.Context,
+	read func(context.Context) (T, error),
+	write func(context.Context, T) error,
+	mutate func(T),
+) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		fresh, err := read(ctx)
+		if err != nil {
 			return err
+		}
+		var zero T
+		if any(fresh) == any(zero) {
+			return fmt.Errorf("read returned a nil %T without an error", fresh)
 		}
 
 		before, ok := fresh.DeepCopyObject().(T)
@@ -60,6 +106,6 @@ func UpdateStatus[T client.Object](
 			return nil
 		}
 
-		return cl.Status().Update(ctx, fresh)
+		return write(ctx, fresh)
 	})
 }

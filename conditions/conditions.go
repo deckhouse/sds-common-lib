@@ -12,6 +12,8 @@
 package conditions
 
 import (
+	"unicode/utf8"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -122,6 +124,37 @@ func SemanticallyEqual(a, b *metav1.Condition) bool {
 		a.ObservedGeneration == b.ObservedGeneration
 }
 
+// MaxMessageLen is the longest condition.message the apiserver will accept.
+//
+// It is the MaxLength that metav1.Condition declares on the field, so every CRD
+// that embeds the standard condition schema carries it. The apiserver counts
+// characters rather than bytes, so the limit is in runes.
+//
+// It matters because the check is on the whole status update: one message over
+// the cap is rejected as a unit, and the resource is then left with whatever
+// conditions it had before — or with none at all, which is indistinguishable
+// from "never evaluated". A controller whose message is built from an error it
+// did not produce cannot bound its length, so the builders here truncate.
+const MaxMessageLen = 32768
+
+// TruncateMessage clips msg to what condition.message accepts, marking the cut
+// with an ellipsis so a reader can tell the text is incomplete.
+//
+// Exported because a module that shapes a condition of its own — a stage
+// condition, a kind-specific type — needs the same bound, and re-deriving it
+// per module is how the constant drifts from the schema.
+func TruncateMessage(msg string) string {
+	// Counted rather than converted: every condition this package builds goes
+	// through here, and almost none of them are anywhere near the cap. Taking
+	// []rune first would copy the whole string on every call just to measure it.
+	if utf8.RuneCountInString(msg) <= MaxMessageLen {
+		return msg
+	}
+
+	const ellipsis = "..."
+	return string([]rune(msg)[:MaxMessageLen-utf8.RuneCountInString(ellipsis)]) + ellipsis
+}
+
 // Ready builds the aggregate Ready condition for a reconcile pass that ended
 // with err (nil on success). It is the one-liner behind the uniform behaviour
 // of the single-stage controllers:
@@ -131,18 +164,55 @@ func SemanticallyEqual(a, b *metav1.Condition) bool {
 // On failure the error text becomes the message, so err should be wrapped with
 // enough context to be readable in `kubectl describe` — and must not carry
 // secrets, since conditions are world-readable to anyone who can get the
-// resource.
+// resource. The message is truncated to [MaxMessageLen].
+//
+// A successful pass gets no message. Use [ReadyWithMessage] to have it report
+// what it achieved.
 func Ready(generation int64, err error) metav1.Condition {
-	cond := metav1.Condition{
+	return ReadyWithMessage(generation, "", err)
+}
+
+// ReadyWithMessage builds the aggregate Ready condition for a reconcile pass
+// that ended with err (nil on success) and described its own outcome as msg.
+//
+// msg is what a successful pass has to say for itself, and it is carried rather
+// than derived from the kind because a pass can succeed without having done
+// everything the kind eventually does — the resource it was waiting on did not
+// exist yet, an optional CRD is not registered in the cluster. A fixed "has been
+// reconciled" would state something the controller does not know to be true,
+// and an empty message is what `kubectl describe` shows next to the condition.
+//
+// An empty msg is left empty rather than given a default, for the same reason.
+// A caller that does want a fixed fallback supplies it and keeps the choice
+// visible at its own call site:
+//
+//	conditions.ReadyWithMessage(generation, cmp.Or(msg, "the resource has been reconciled"), err)
+//
+// On failure msg is dropped in favour of the error text: once a pass has failed,
+// what it managed to do before that is not what an operator needs to read first.
+// Callers wanting both should wrap the error with the context instead.
+//
+// Neither msg nor err must carry secrets: conditions are readable by anyone who
+// can get the resource, and a backend error text routinely echoes the request it
+// failed on, credentials in the URL included.
+//
+// Both messages are truncated to [MaxMessageLen].
+func ReadyWithMessage(generation int64, msg string, err error) metav1.Condition {
+	if err != nil {
+		return metav1.Condition{
+			Type:               TypeReady,
+			Status:             metav1.ConditionFalse,
+			Reason:             ReasonReconcileFailed,
+			Message:            TruncateMessage(err.Error()),
+			ObservedGeneration: generation,
+		}
+	}
+
+	return metav1.Condition{
 		Type:               TypeReady,
 		Status:             metav1.ConditionTrue,
 		Reason:             ReasonReconciled,
+		Message:            TruncateMessage(msg),
 		ObservedGeneration: generation,
 	}
-	if err != nil {
-		cond.Status = metav1.ConditionFalse
-		cond.Reason = ReasonReconcileFailed
-		cond.Message = err.Error()
-	}
-	return cond
 }

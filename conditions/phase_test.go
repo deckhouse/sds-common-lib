@@ -1,6 +1,7 @@
 package conditions_test
 
 import (
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -198,5 +199,30 @@ func TestDerivePhase_IsPureFunctionOfConditions(t *testing.T) {
 	degraded := full[:1]
 	if got := conditions.DerivePhase(degraded, stageA, stageB); got != conditions.PhasePending {
 		t.Fatalf("got %q, want %q", got, conditions.PhasePending)
+	}
+}
+
+// A stage message that is itself at the cap gets a stage-name prefix here, which
+// puts the aggregate over it. That would make the apiserver reject the whole
+// status update — dropping the stage conditions too, so the resource ends up
+// reporting nothing about a failure it had already diagnosed.
+func TestAggregateReadyTruncatesAStageMessage(t *testing.T) {
+	conds := []metav1.Condition{{
+		Type:    stageA,
+		Status:  metav1.ConditionFalse,
+		Reason:  conditions.ReasonReconcileFailed,
+		Message: strings.Repeat("x", conditions.MaxMessageLen),
+	}}
+
+	cond := conditions.AggregateReady(conds, 1, stageA)
+
+	if cond.Status != metav1.ConditionFalse {
+		t.Fatalf("status = %q, want %q", cond.Status, metav1.ConditionFalse)
+	}
+	if n := len([]rune(cond.Message)); n > conditions.MaxMessageLen {
+		t.Errorf("message = %d runes, want at most %d", n, conditions.MaxMessageLen)
+	}
+	if !strings.HasPrefix(cond.Message, stageA+": ") {
+		t.Error("the message must still name the stage it came from")
 	}
 }
