@@ -29,67 +29,21 @@ const (
 // Calling Aggregate with no stages returns Unknown — an empty set of evidence
 // says nothing, and reporting True would be actively misleading.
 func Aggregate(conds []metav1.Condition, stages ...string) metav1.ConditionStatus {
-	if len(stages) == 0 {
-		return metav1.ConditionUnknown
-	}
-
-	result := metav1.ConditionTrue
-	for _, t := range stages {
-		c := Get(conds, t)
-		if c == nil || c.Status == metav1.ConditionUnknown {
-			return metav1.ConditionUnknown
-		}
-		if c.Status == metav1.ConditionFalse {
-			result = metav1.ConditionFalse
-		}
-	}
-	return result
+	return Stages{Types: stages}.Aggregate(conds)
 }
 
 // AggregateReady builds the aggregate Ready condition from the given stage
 // conditions. The message names the first stage that is not True, which is what
 // makes `kubectl describe` immediately useful on a resource stuck mid-way.
+//
+// A True aggregate carries no message: this builds a condition, it does not know
+// what the pass achieved. [Stages.SetReady] writes one that says.
+//
+// The message is truncated to [MaxMessageLen]. It has to be: a stage message
+// that is itself right at the cap comes back out of here with a stage-name
+// prefix in front of it, which is over.
 func AggregateReady(conds []metav1.Condition, generation int64, stages ...string) metav1.Condition {
-	cond := metav1.Condition{
-		Type:               TypeReady,
-		Status:             Aggregate(conds, stages...),
-		Reason:             ReasonReconciled,
-		ObservedGeneration: generation,
-	}
-
-	if cond.Status == metav1.ConditionTrue {
-		return cond
-	}
-
-	for _, t := range stages {
-		c := Get(conds, t)
-		if c != nil && c.Status == metav1.ConditionTrue {
-			continue
-		}
-
-		cond.Message = "waiting for " + t
-		switch {
-		case c == nil:
-			cond.Reason = ReasonPending
-		case c.Status == metav1.ConditionUnknown:
-			cond.Reason = ReasonPending
-			if c.Message != "" {
-				cond.Message = t + ": " + c.Message
-			}
-		default:
-			cond.Reason = ReasonReconcileFailed
-			if c.Message != "" {
-				cond.Message = t + ": " + c.Message
-			}
-		}
-		return cond
-	}
-
-	// Unreachable while Aggregate and this loop agree on what "not True" means;
-	// keep the fallback so a future change to one of them cannot silently
-	// produce a condition with a stale ReasonReconciled.
-	cond.Reason = ReasonPending
-	return cond
+	return Stages{Types: stages}.ReadyCondition(conds, generation)
 }
 
 // DerivePhase computes the coarse phase from the stage conditions, using the
@@ -106,19 +60,5 @@ func AggregateReady(conds []metav1.Condition, generation int64, stages ...string
 //     waiting on a dependency;
 //   - PhaseReady      every stage is True.
 func DerivePhase(conds []metav1.Condition, stages ...string) string {
-	switch Aggregate(conds, stages...) {
-	case metav1.ConditionTrue:
-		return PhaseReady
-	case metav1.ConditionUnknown:
-		return PhasePending
-	}
-
-	for _, t := range stages {
-		if c := Get(conds, t); c != nil &&
-			c.Status == metav1.ConditionFalse &&
-			c.Reason == ReasonReconcileFailed {
-			return PhaseError
-		}
-	}
-	return PhaseInProgress
+	return Stages{Types: stages}.Phase(conds)
 }

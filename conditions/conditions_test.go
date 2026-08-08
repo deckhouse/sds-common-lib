@@ -2,8 +2,10 @@ package conditions_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -193,5 +195,110 @@ func TestRemove(t *testing.T) {
 	}
 	if conditions.Remove(&conds, "A") {
 		t.Error("expected Remove to report nothing to do the second time")
+	}
+}
+
+// Ready predates ReadyWithMessage and is called by controllers already released
+// against this package, so its output has to stay exactly what it was: a
+// successful pass carries no message.
+//
+// The temptation is to give it a default like "reconciled" now that the field is
+// threaded through — that would silently rewrite the status of every existing
+// caller and, worse, assert something the pass never claimed.
+func TestReadyLeavesASuccessMessageEmpty(t *testing.T) {
+	if got := conditions.Ready(1, nil).Message; got != "" {
+		t.Errorf("message = %q, want it empty; Ready must not invent one", got)
+	}
+}
+
+func TestReadyWithMessage(t *testing.T) {
+	ok := conditions.ReadyWithMessage(5, "the backend is in place", nil)
+	if ok.Status != metav1.ConditionTrue ||
+		ok.Reason != conditions.ReasonReconciled ||
+		ok.ObservedGeneration != 5 ||
+		ok.Message != "the backend is in place" {
+		t.Fatalf("unexpected success condition: %+v", ok)
+	}
+
+	// The error text wins: what the pass managed before it failed is not what an
+	// operator needs to read first.
+	failed := conditions.ReadyWithMessage(5, "the backend is in place", errors.New("boom"))
+	if failed.Status != metav1.ConditionFalse ||
+		failed.Reason != conditions.ReasonReconcileFailed ||
+		failed.ObservedGeneration != 5 ||
+		failed.Message != "boom" {
+		t.Fatalf("unexpected failure condition: %+v", failed)
+	}
+}
+
+// An over-long message is rejected by the apiserver as part of the whole status
+// update, so the resource ends up with no condition at all rather than a clipped
+// one. Truncating here is what keeps a verdict readable instead of absent.
+func TestTruncateMessage(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want int // expected rune length
+	}{
+		{"short", "boom", 4},
+		{"exactly at the limit", strings.Repeat("x", conditions.MaxMessageLen), conditions.MaxMessageLen},
+		{"one over", strings.Repeat("x", conditions.MaxMessageLen+1), conditions.MaxMessageLen},
+		{"far over", strings.Repeat("x", conditions.MaxMessageLen*3), conditions.MaxMessageLen},
+		// The apiserver counts characters, so a message of multi-byte runes is
+		// well under the cap in runes while being three times the cap in bytes.
+		// Truncating on bytes would mangle it for no reason.
+		{"multi-byte runes under the limit", strings.Repeat("тест", 100), 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := conditions.TruncateMessage(tc.in)
+			if n := len([]rune(got)); n != tc.want {
+				t.Errorf("length = %d runes, want %d", n, tc.want)
+			}
+			if len([]rune(tc.in)) <= conditions.MaxMessageLen {
+				if got != tc.in {
+					t.Error("a message within the limit must come back unchanged")
+				}
+				return
+			}
+			if !strings.HasSuffix(got, "...") {
+				t.Errorf("a truncated message must be marked as cut, got %q", got[len(got)-8:])
+			}
+		})
+	}
+}
+
+// Multi-byte runes exactly at the boundary: cutting on bytes would both overshoot
+// the character count and be able to split a rune into invalid UTF-8.
+func TestTruncateMessageCutsOnRunesNotBytes(t *testing.T) {
+	in := strings.Repeat("т", conditions.MaxMessageLen+10)
+
+	got := conditions.TruncateMessage(in)
+
+	if n := len([]rune(got)); n != conditions.MaxMessageLen {
+		t.Errorf("length = %d runes, want %d", n, conditions.MaxMessageLen)
+	}
+	if !utf8.ValidString(got) {
+		t.Error("truncation produced invalid UTF-8")
+	}
+}
+
+func TestReadyTruncatesALongError(t *testing.T) {
+	long := errors.New(strings.Repeat("x", conditions.MaxMessageLen*2))
+
+	for name, cond := range map[string]metav1.Condition{
+		"Ready":            conditions.Ready(1, long),
+		"ReadyWithMessage": conditions.ReadyWithMessage(1, "", long),
+	} {
+		if n := len([]rune(cond.Message)); n > conditions.MaxMessageLen {
+			t.Errorf("%s: message = %d runes, want at most %d", name, n, conditions.MaxMessageLen)
+		}
+	}
+}
+
+func TestReadyWithMessageTruncatesALongSuccessMessage(t *testing.T) {
+	cond := conditions.ReadyWithMessage(1, strings.Repeat("x", conditions.MaxMessageLen*2), nil)
+
+	if n := len([]rune(cond.Message)); n > conditions.MaxMessageLen {
+		t.Errorf("message = %d runes, want at most %d", n, conditions.MaxMessageLen)
 	}
 }
