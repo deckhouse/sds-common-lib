@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	log := slog.New(slogh.NewHandler(slogh.Config{}))
+	log := slog.New(&slogh.Handler{})
 
 	log.Info("slog is intended to replace the standard log", "v", "1.23.4")
 }
@@ -34,7 +34,7 @@ import (
 )
 
 func main() {
-	log := logr.FromSlogHandler(slogh.NewHandler(slogh.Config{}))
+	log := logr.FromSlogHandler(&slogh.Handler{})
 
 	crlog.SetLogger(log)
 
@@ -47,11 +47,11 @@ func main() {
 ## Config file with automatic reload
 
 ``` go
-h := slogh.NewHandler(slogh.Config{})
-slogh.RunConfigFileWatcher(context.Background(), h.UpdateConfigData, nil)
+slogh.EnableConfigReload(context.Background(), nil)
+log := slog.New(&slogh.Handler{})
 ```
 
-`slogh.RunConfigFileWatcher` will load config (`./slog.cfg` by default) and start a resilent background file watcher, which will reload handler configuration on each change. Configuration file has a simple key=value format:
+`slogh.EnableConfigReload` will load config (`./slogh.cfg` by default) and start a resilient background file watcher, which reloads the configuration on each change. Configuration lives in the package, so every handler picks the change up -- pass a `*slogh.ConfigFileWatcherOptions` to override the path, the retry interval or where the watcher logs its own errors. Configuration file has a simple key=value format:
 
 ```
 # lines without equal sign are ignored
