@@ -114,7 +114,11 @@ func (m Builder) CreateEntry(path string, args ...any) (*Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	file.sys = &m.OS.defaultSys
+	// An explicit *syscall.Stat_t passed in args (e.g. to fake a block
+	// device's Rdev) must win over the OS-wide default.
+	if file.sys == nil {
+		file.sys = &m.OS.defaultSys
+	}
 	return file, err
 }
 

@@ -17,6 +17,7 @@ limitations under the License.
 package fake_test
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/deckhouse/sds-common-lib/fs"
@@ -87,4 +88,32 @@ func TestLstatNonExistentFile(t *testing.T) {
 
 	_, err = fsys.Lstat("nonexistent")
 	assert.Error(t, err)
+}
+
+// Positive: a *syscall.Stat_t passed as a creation argument overrides the
+// OS-wide default Sys() value, so a single fake filesystem can host block
+// devices with distinct Rdev values (e.g. simulating several /dev/dm-N
+// devices, each with its own major:minor).
+func TestStatCustomSysOverridesDefault(t *testing.T) {
+	builder := fake.NewBuilder("/").
+		WithFileAtPath("dm-1", fs.ModeDevice, &syscall.Stat_t{Rdev: 0xfe6c}).
+		WithFileAtPath("plain.txt")
+	theOS, err := builder.Build()
+	assert.NoError(t, err)
+
+	// /
+	// ├── dm-1 (block device, custom Rdev)
+	// └── plain.txt (no custom Sys, gets the shared default)
+
+	dmInfo, err := theOS.Stat("dm-1")
+	assert.NoError(t, err)
+	dmSys, ok := dmInfo.Sys().(*syscall.Stat_t)
+	assert.True(t, ok, "Sys() should return *syscall.Stat_t")
+	assert.Equal(t, uint64(0xfe6c), dmSys.Rdev, "custom Rdev should be preserved")
+
+	plainInfo, err := theOS.Stat("plain.txt")
+	assert.NoError(t, err)
+	plainSys, ok := plainInfo.Sys().(*syscall.Stat_t)
+	assert.True(t, ok, "Sys() should return *syscall.Stat_t")
+	assert.Equal(t, uint64(0), plainSys.Rdev, "file without a custom Sys should keep the shared default")
 }

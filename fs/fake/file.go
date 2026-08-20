@@ -138,6 +138,7 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 		var file *File
 
 		var linkReaderFound bool
+		var sysFound bool
 
 		err := errors.Join(
 			tryCastAndSetArgument(&file, arg, &fileFound, newArgError),
@@ -145,7 +146,11 @@ func createFile(parent *Entry, name string, args ...any) (*Entry, error) {
 			tryCastAndSetArgument(&f.fileOpener, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.fileSizer, arg, &known, newArgError),
 			tryCastAndSetArgument(&f.linkReader, arg, &linkReaderFound, newArgError),
+			tryCastAndSetArgument(&f.sys, arg, &sysFound, newArgError),
 		)
+		if sysFound {
+			known = true
+		}
 
 		if err != nil {
 			return nil, err
