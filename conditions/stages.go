@@ -13,9 +13,9 @@ import (
 // It exists because two of the storage modules had grown the same state machine
 // independently — accumulate a condition per stage, mark everything downstream
 // as blocked when one does not pass, fold the lot into an aggregate Ready — and
-// the copies had already drifted apart. The type carries only the condition
-// handling: the status builders those modules flush through are full of their
-// own fields and stay where they are.
+// the copies had already drifted apart. The type carries the condition handling;
+// the scratch space a reconcile accumulates its verdicts in before flushing them
+// is [Builder], which had been copied alongside it.
 //
 // The zero vocabulary is this package's own, so a caller that only fills Types
 // gets the same behaviour the package-level [Aggregate], [AggregateReady] and
