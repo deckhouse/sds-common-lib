@@ -1,5 +1,22 @@
 # slogh
 
+> **Deprecated — use [`logger`](../logger) instead.**
+>
+> The storage modules are consolidating on one logger, built on
+> `github.com/deckhouse/deckhouse/pkg/log`, so that a message looks the same
+> whichever module emitted it and so that `sloglint` and `govet`'s slog analyser
+> see every call site. `slogh` is a second handler with its own configuration
+> surface and its own level vocabulary, which is exactly what the consolidation
+> removes.
+>
+> The one feature `logger` does not have is reloading the level from a mounted
+> file at runtime. Where that matters, raise the module's `LOG_LEVEL` and let the
+> pod roll, or call `logger.Logger.SetVerbosity`, which changes the level in place
+> on every logger derived from it.
+>
+> The package stays compiling for the callers that have not moved yet; it takes no
+> new features.
+
 This is a standard Go `slog.Handler` interface implementation that includes features and defaults helpful for the Deckhouse ecosystem.
 
 # Usage
