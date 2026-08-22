@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	metricsstorage "github.com/deckhouse/deckhouse/pkg/metrics-storage"
 	"github.com/stretchr/testify/assert"
@@ -27,51 +26,33 @@ func TestNewStorageKeepsItsOwnRegistry(t *testing.T) {
 	first := NewStorage()
 	second := NewStorage()
 
-	one, err := NewCSI(first, "module_one")
+	_, err := first.RegisterCounter("module_one_events_total", nil)
 	require.NoError(t, err)
-	two, err := NewCSI(second, "module_two")
+	_, err = second.RegisterCounter("module_two_events_total", nil)
 	require.NoError(t, err)
 
-	one.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
-	two.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
+	first.CounterAdd("module_one_events_total", 1, nil)
+	second.CounterAdd("module_two_events_total", 1, nil)
 
-	assert.Contains(t, scrape(t, first), "module_one_operations_total")
-	assert.NotContains(t, scrape(t, first), "module_two_operations_total")
+	assert.Contains(t, scrape(t, first), "module_one_events_total")
+	assert.NotContains(t, scrape(t, first), "module_two_events_total")
 }
 
 func TestMetricNameRejectsAnInvalidPrefix(t *testing.T) {
 	for _, prefix := range []string{"", "sds-local-volume", "9lives", "with space", "trailing/slash"} {
 		t.Run(prefix, func(t *testing.T) {
-			_, err := metricName(prefix, CSIOperationsTotalSuffix)
+			_, err := MetricName(prefix, "events_total")
 			assert.Error(t, err)
 		})
 	}
 }
 
 func TestMetricNameJoinsWithASeparator(t *testing.T) {
-	name, err := metricName("sds_local_volume_csi", CSIOperationsTotalSuffix)
+	name, err := MetricName("sds_local_volume", "reconciles_total")
 	require.NoError(t, err)
-	assert.Equal(t, "sds_local_volume_csi_operations_total", name)
+	assert.Equal(t, "sds_local_volume_reconciles_total", name)
 }
 
 // TestRecordersRejectAnInvalidPrefix guards the reason metricName validates
 // rather than sanitises: a renamed metric is a dashboard that reads nothing and
 // says nothing about why.
-func TestRecordersRejectAnInvalidPrefix(t *testing.T) {
-	st := NewStorage()
-
-	_, err := NewCSI(st, "sds-local-volume")
-	assert.Error(t, err)
-}
-
-// TestRegistrationIsIdempotent is the property that makes a hand-written
-// MustRegister init() unnecessary, and the reason a module can declare the
-// shared metrics next to its own without ordering the two.
-func TestRegistrationIsIdempotent(t *testing.T) {
-	st := NewStorage()
-
-	_, err := NewCSI(st, "sds_local_volume_csi")
-	require.NoError(t, err)
-	_, err = NewCSI(st, "sds_local_volume_csi")
-	assert.NoError(t, err)
-}

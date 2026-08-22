@@ -1,10 +1,12 @@
 // Package monitoring is the single way a storage module exposes Prometheus
 // metrics.
 //
-// It carries the metric storage every binary builds the same way, the endpoint
-// that serves it, and a recorder for gRPC operations, which is the one metric
-// family the fleet has in common that nothing else provides. Metrics specific to
-// one module stay in that module and are declared on the same storage.
+// It carries the metric storage every binary builds the same way and the
+// endpoint that serves it. Metrics specific to one module stay in that module
+// and are declared on the same storage; the one family the fleet has in common
+// that nothing else provides -- a CSI driver's gRPC operations -- lives in the
+// csimetrics subpackage, so that google.golang.org/grpc stays out of the build
+// of every module that wants only the endpoint.
 //
 // There is deliberately no reconcile recorder here. controller-runtime already
 // exports controller_runtime_reconcile_total{controller,result} — with result
@@ -82,12 +84,13 @@ func AttachToControllerRuntime(st metricsstorage.Storage) error {
 // appends, so that a prefix cannot produce a name Prometheus would reject.
 var prefixPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
-// metricName joins a module prefix and a metric suffix, e.g. ("sds_local_volume",
-// "reconciles_total") -> "sds_local_volume_reconciles_total".
+// MetricName joins a module prefix and a metric suffix, e.g.
+// ("sds_local_volume_csi", "operations_total") ->
+// "sds_local_volume_csi_operations_total".
 //
 // The prefix is validated rather than sanitised: a metric silently renamed at
 // start-up is a dashboard and an alerting rule that quietly read nothing.
-func metricName(prefix, suffix string) (string, error) {
+func MetricName(prefix, suffix string) (string, error) {
 	if !prefixPattern.MatchString(prefix) {
 		return "", fmt.Errorf("metric prefix %q is not a valid Prometheus name prefix", prefix)
 	}

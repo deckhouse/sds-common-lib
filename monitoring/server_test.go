@@ -33,9 +33,9 @@ func TestServerServesTheStorage(t *testing.T) {
 	require.NoError(t, listener.Close())
 
 	st := NewStorage()
-	c, err := NewCSI(st, "sds_local_volume_csi")
+	_, err = st.RegisterCounter("sds_local_volume_events_total", nil)
 	require.NoError(t, err)
-	c.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
+	st.CounterAdd("sds_local_volume_events_total", 1, nil)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -51,7 +51,7 @@ func TestServerServesTheStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Contains(t, string(body), "sds_local_volume_csi_operations_total")
+	assert.Contains(t, string(body), "sds_local_volume_events_total")
 
 	cancel()
 	select {
