@@ -1,11 +1,19 @@
 // Package monitoring is the single way a storage module exposes Prometheus
 // metrics.
 //
-// It carries three things: the metric storage every binary builds the same way,
-// the endpoint that serves it, and the recorders for the metric families the
-// whole fleet has in common — reconciles for controllers, gRPC operations for
-// CSI drivers. Metrics specific to one module stay in that module and are
-// declared on the same storage.
+// It carries the metric storage every binary builds the same way, the endpoint
+// that serves it, and a recorder for gRPC operations, which is the one metric
+// family the fleet has in common that nothing else provides. Metrics specific to
+// one module stay in that module and are declared on the same storage.
+//
+// There is deliberately no reconcile recorder here. controller-runtime already
+// exports controller_runtime_reconcile_total{controller,result} — with result
+// covering success, error, requeue and requeue_after — plus
+// controller_runtime_reconcile_time_seconds{controller},
+// controller_runtime_reconcile_errors_total, _panics_total, _active_workers and
+// the workqueue metrics, for every controller registered with a manager. Opening
+// the endpoint is what makes all of that visible; a second copy under a module
+// prefix would be the same data under a different name.
 //
 // The storage comes from github.com/deckhouse/deckhouse/pkg/metrics-storage,
 // which registers metrics idempotently and can expire whole groups of series at
@@ -21,6 +29,9 @@
 //	st := monitoring.NewStorage()
 //	if err := monitoring.AttachToControllerRuntime(st); err != nil { ... }
 //	// then manager.Options{Metrics: metricsserver.Options{BindAddress: addr}}
+//
+// A module with no metrics of its own still wants the endpoint: that alone is
+// what publishes the controller-runtime and workqueue metrics.
 //
 // A binary that runs no manager — a CSI driver, a scheduler extender — serves
 // the storage itself:
@@ -41,22 +52,8 @@ import (
 // declaring its own metrics should reuse these spellings for the same meanings
 // rather than inventing a synonym.
 const (
-	LabelController = "controller"
-	LabelResult     = "result"
-	LabelMethod     = "method"
-	LabelGRPCCode   = "grpc_code"
-)
-
-// Values of the LabelResult label.
-const (
-	ResultSuccess = "success"
-	ResultError   = "error"
-	ResultRequeue = "requeue"
-
-	// ResultNoop is an attempt that found nothing left to do. It exists so that a
-	// sweep which reclaimed nothing is not counted as a reclaim; a module that has
-	// no such distinction does not use it.
-	ResultNoop = "noop"
+	LabelMethod   = "method"
+	LabelGRPCCode = "grpc_code"
 )
 
 // NewStorage returns a metric storage backed by its own registry.

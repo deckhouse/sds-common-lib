@@ -9,7 +9,6 @@ import (
 	metricsstorage "github.com/deckhouse/deckhouse/pkg/metrics-storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // scrape renders what a Prometheus scrape of st would see.
@@ -28,32 +27,31 @@ func TestNewStorageKeepsItsOwnRegistry(t *testing.T) {
 	first := NewStorage()
 	second := NewStorage()
 
-	one, err := NewReconcile(first, "module_one")
+	one, err := NewCSI(first, "module_one")
 	require.NoError(t, err)
-	two, err := NewReconcile(second, "module_two")
+	two, err := NewCSI(second, "module_two")
 	require.NoError(t, err)
 
-	res, obsErr := reconcile.Result{}, error(nil)
-	one.Observe("ctrl", time.Now(), &res, &obsErr)
-	two.Observe("ctrl", time.Now(), &res, &obsErr)
+	one.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
+	two.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
 
-	assert.Contains(t, scrape(t, first), "module_one_reconciles_total")
-	assert.NotContains(t, scrape(t, first), "module_two_reconciles_total")
+	assert.Contains(t, scrape(t, first), "module_one_operations_total")
+	assert.NotContains(t, scrape(t, first), "module_two_operations_total")
 }
 
 func TestMetricNameRejectsAnInvalidPrefix(t *testing.T) {
 	for _, prefix := range []string{"", "sds-local-volume", "9lives", "with space", "trailing/slash"} {
 		t.Run(prefix, func(t *testing.T) {
-			_, err := metricName(prefix, ReconcilesTotalSuffix)
+			_, err := metricName(prefix, CSIOperationsTotalSuffix)
 			assert.Error(t, err)
 		})
 	}
 }
 
 func TestMetricNameJoinsWithASeparator(t *testing.T) {
-	name, err := metricName("sds_local_volume", ReconcilesTotalSuffix)
+	name, err := metricName("sds_local_volume_csi", CSIOperationsTotalSuffix)
 	require.NoError(t, err)
-	assert.Equal(t, "sds_local_volume_reconciles_total", name)
+	assert.Equal(t, "sds_local_volume_csi_operations_total", name)
 }
 
 // TestRecordersRejectAnInvalidPrefix guards the reason metricName validates
@@ -62,10 +60,7 @@ func TestMetricNameJoinsWithASeparator(t *testing.T) {
 func TestRecordersRejectAnInvalidPrefix(t *testing.T) {
 	st := NewStorage()
 
-	_, err := NewReconcile(st, "sds-local-volume")
-	assert.Error(t, err)
-
-	_, err = NewCSI(st, "sds-local-volume")
+	_, err := NewCSI(st, "sds-local-volume")
 	assert.Error(t, err)
 }
 
@@ -75,12 +70,7 @@ func TestRecordersRejectAnInvalidPrefix(t *testing.T) {
 func TestRegistrationIsIdempotent(t *testing.T) {
 	st := NewStorage()
 
-	_, err := NewReconcile(st, "sds_local_volume")
-	require.NoError(t, err)
-	_, err = NewReconcile(st, "sds_local_volume")
-	assert.NoError(t, err)
-
-	_, err = NewCSI(st, "sds_local_volume_csi")
+	_, err := NewCSI(st, "sds_local_volume_csi")
 	require.NoError(t, err)
 	_, err = NewCSI(st, "sds_local_volume_csi")
 	assert.NoError(t, err)

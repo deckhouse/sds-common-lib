@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"github.com/deckhouse/sds-common-lib/logger"
 )
 
@@ -35,11 +33,9 @@ func TestServerServesTheStorage(t *testing.T) {
 	require.NoError(t, listener.Close())
 
 	st := NewStorage()
-	r, err := NewReconcile(st, "sds_local_volume")
+	c, err := NewCSI(st, "sds_local_volume_csi")
 	require.NoError(t, err)
-
-	res, obsErr := reconcile.Result{}, error(nil)
-	r.Observe("ctrl", time.Now(), &res, &obsErr)
+	c.ObserveOperation("/csi.v1.Controller/CreateVolume", time.Now(), nil)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -55,7 +51,7 @@ func TestServerServesTheStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Contains(t, string(body), "sds_local_volume_reconciles_total")
+	assert.Contains(t, string(body), "sds_local_volume_csi_operations_total")
 
 	cancel()
 	select {
