@@ -131,6 +131,25 @@ func NewLoggerFromSlog(l *log.Logger) Logger {
 // "local-storage-class-controller" then named "reconcile" reports
 // "local-storage-class-controller.reconcile". Use it instead of hand-writing a
 // "[Component]" prefix into the message.
+//
+// # What belongs in the path
+//
+// A segment names a component, or a phase within one: the controller, the
+// driver, the webhook, then reconcile, create, update, delete, watch. Reuse
+// those phase words instead of a synonym per module, so that one query answers
+// the same question across the fleet.
+//
+// A segment does not repeat what an outer one already says. A logger named after
+// its controller is not named again with that controller's name.
+//
+// A Go identifier does not belong in the path at all. At LOG_LEVEL 3 and 4 the
+// record already carries file and line -- pkg/log adds the source attribute only
+// at DEBUG and TRACE -- and a rename keeps those correct while a hand-copied
+// function name silently goes stale. At the default LOG_LEVEL 2 there is no
+// source attribute at all, so the path is the only locator the reader has, which
+// is precisely why it should name something they can reason about rather than
+// whichever unexported helper happens to hold the call. Detail that varies per
+// call belongs in With, not here.
 func (l Logger) Named(name string) Logger {
 	return Logger{l.Logger.Named(name)}
 }

@@ -40,6 +40,31 @@
 //
 //	srv := monitoring.NewServer(addr, st, log)
 //	go func() { _ = srv.Start(ctx) }()
+//
+// # When this storage is the wrong one
+//
+// It registers counters, gauges and histograms and nothing else --
+// metricsstorage.Registerer is RegisterCounter, RegisterGauge and
+// RegisterHistogram, and the package has no summary anywhere in it. A family
+// already published as a prometheus.Summary therefore cannot move here
+// unchanged: it becomes a histogram, its {quantile="..."} series stop existing
+// and _bucket series appear instead. Every dashboard, recording rule and alert
+// reading a quantile then reads nothing, and since those consumers live outside
+// the module's repository, nothing in its CI notices. Convert such a family
+// deliberately, together with them, or leave it on its own collector.
+//
+// Group expiry through ApplyBatchOperations expires the whole group before
+// applying that batch, so a scrape landing between the two steps sees the group
+// missing. That is the right trade for a set with a natural expiry -- a series
+// per orphaned volume -- and the wrong one for a set rewritten on every pass
+// that must never read as empty; there, writing the new values and then deleting
+// only the label sets that disappeared keeps the picture continuous. Writes made
+// directly through Grouped() expire nothing, so they do not gap either, but then
+// nothing removes a series whose object is gone.
+//
+// A module with neither problem takes the storage. A module with either keeps
+// its own collectors and still opens the endpoint: that alone is what publishes
+// the controller-runtime metrics.
 package monitoring
 
 import (
@@ -64,6 +89,8 @@ const (
 // together into whichever endpoint serves them, and nothing that happens to
 // import a package with an init-time MustRegister can collide with them or take
 // the process down.
+//
+// Two shapes of metric do not fit it; see the package documentation.
 func NewStorage(opts ...metricsstorage.Option) metricsstorage.Storage {
 	opts = append([]metricsstorage.Option{metricsstorage.WithNewRegistry()}, opts...)
 	return metricsstorage.NewMetricStorage(opts...)
