@@ -1,8 +1,8 @@
 module github.com/deckhouse/sds-common-lib
 
-go 1.24.4
+go 1.27.0
 
-toolchain go1.24.6
+toolchain go1.27.0
 
 require (
 	github.com/deckhouse/deckhouse/pkg/log v0.2.1
