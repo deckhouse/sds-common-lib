@@ -1,6 +1,6 @@
 module github.com/deckhouse/sds-common-lib
 
-go 1.27.2
+go 1.27.3
 require (
 	github.com/deckhouse/deckhouse/pkg/log v0.2.1
 	github.com/deckhouse/deckhouse/pkg/metrics-storage v0.3.0
