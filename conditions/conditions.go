@@ -9,6 +9,48 @@
 //
 // The Kubernetes API conventions this package follows are documented in
 // https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+//
+// # Events
+//
+// Conditions are the state of a resource; Kubernetes Events are the record of
+// when it changed and of what the controller did about it. The storage modules
+// record them by one convention:
+//
+//   - an Event is recorded when a condition transitions — its status changes
+//     between True, False and Unknown, or its reason changes — and when the
+//     controller does something once that an operator would look for in
+//     `kubectl describe`: created or deleted an object on the resource's behalf,
+//     reissued a credential, held a deletion back because something still uses
+//     the resource. A reconcile pass that changed nothing records nothing;
+//   - the type is Warning when the new state is a failure — Ready=False, or a
+//     condition that reports a problem — and Normal otherwise;
+//   - the reason is a CamelCase identifier that never changes once released. On
+//     a condition transition it is the condition's own reason, so an alert on
+//     the condition and a filter on the Events use the same word;
+//   - the note is the condition message, cut to what an Event accepts;
+//   - the Event is about the module's own resource, the one that carries the
+//     condition, and not about the objects the controller manages for it. For a
+//     cluster-scoped resource it lands in the default namespace, so the
+//     controller needs to be allowed to create Events there.
+//
+// Events do not replace status. The apiserver keeps them for an hour by
+// default and does not promise to keep them at all, so anything a client acts
+// on belongs in a condition; an Event only tells when and why it moved.
+//
+// [WithEvents] implements the condition part for callers of [UpdateStatus] and
+// [UpdateStatusVia]:
+//
+//	err := conditions.UpdateStatus(ctx, cl, obj, func(o *v1alpha1.Foo) {
+//		conditions.Set(&o.Status.Conditions, conditions.Ready(o.Generation, reconcileErr))
+//	}, conditions.WithEvents(r.recorder, func(o *v1alpha1.Foo) []metav1.Condition {
+//		return o.Status.Conditions
+//	}))
+//
+// A caller that writes the status by other means uses [RecordTransition] after
+// its write. One-off actions are recorded with the recorder directly:
+//
+//	r.recorder.Eventf(obj, nil, corev1.EventTypeNormal, "SecretReissued", "Reissue",
+//		"reissued the access key in Secret %s", name)
 package conditions
 
 import (

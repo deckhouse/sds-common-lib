@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -32,11 +33,14 @@ import (
 //
 // obj itself is left untouched — it is only used for its key and its type.
 // Callers that need the written state must re-read the object.
+//
+// opts add what happens around the write; see [WithEvents].
 func UpdateStatus[T client.Object](
 	ctx context.Context,
 	cl client.Client,
 	obj T,
 	mutate func(T),
+	opts ...UpdateOption[T],
 ) error {
 	key := client.ObjectKeyFromObject(obj)
 
@@ -57,7 +61,7 @@ func UpdateStatus[T client.Object](
 		return cl.Status().Update(ctx, fresh)
 	}
 
-	return UpdateStatusVia(ctx, read, write, mutate)
+	return UpdateStatusVia(ctx, read, write, mutate, opts...)
 }
 
 // UpdateStatusVia is [UpdateStatus] for callers that do not hold a
@@ -84,7 +88,13 @@ func UpdateStatusVia[T client.Object](
 	read func(context.Context) (T, error),
 	write func(context.Context, T) error,
 	mutate func(T),
+	opts ...UpdateOption[T],
 ) error {
+	var o updateOptions[T]
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		fresh, err := read(ctx)
 		if err != nil {
@@ -106,6 +116,50 @@ func UpdateStatusVia[T client.Object](
 			return nil
 		}
 
-		return write(ctx, fresh)
+		if err := write(ctx, fresh); err != nil {
+			return err
+		}
+		for _, f := range o.afterWrite {
+			f(before, fresh)
+		}
+		return nil
 	})
+}
+
+// UpdateOption adds to what [UpdateStatus] and [UpdateStatusVia] do around the
+// write.
+type UpdateOption[T client.Object] func(*updateOptions[T])
+
+type updateOptions[T client.Object] struct {
+	afterWrite []func(before, after T)
+}
+
+// WithEvents has the update record a Kubernetes Event on the object for every
+// condition of the given types that the write moved, as [RecordTransition]
+// defines it. With no types it watches [TypeReady]. The package doc has the
+// convention this implements.
+//
+// get returns the conditions of an object. It is called on the object as read
+// and as written, and must cope with a nil status pointer.
+//
+// The Events are recorded once the write has gone through, against the state it
+// replaced. That is why this is an option and not something mutate or [Set] can
+// do: mutate can run more than once and its write can fail, so an Event tied to
+// it would announce a transition twice, or one that never landed. A write that
+// is not made — the pass changed nothing — records nothing.
+//
+// A nil rec records nothing, so a reconciler built without a recorder in tests
+// needs no special case.
+func WithEvents[T client.Object](rec EventRecorder, get func(T) []metav1.Condition, types ...string) UpdateOption[T] {
+	if len(types) == 0 {
+		types = []string{TypeReady}
+	}
+	return func(o *updateOptions[T]) {
+		if rec == nil {
+			return
+		}
+		o.afterWrite = append(o.afterWrite, func(before, after T) {
+			recordTransitions(rec, after, get(before), get(after), types)
+		})
+	}
 }
