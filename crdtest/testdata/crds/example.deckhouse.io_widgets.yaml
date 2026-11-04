@@ -1,0 +1,44 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.deckhouse.io
+spec:
+  group: example.deckhouse.io
+  names:
+    kind: Widget
+    listKind: WidgetList
+    plural: widgets
+    singular: widget
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  pattern: '^[a-z]+$'
+                  x-kubernetes-validations:
+                    - rule: self == oldSelf
+                      message: name is immutable
+                min:
+                  type: integer
+                max:
+                  type: integer
+              x-kubernetes-validations:
+                - rule: '!has(self.min) || !has(self.max) || self.min <= self.max'
+                  message: min must not exceed max
