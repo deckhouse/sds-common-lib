@@ -1,0 +1,113 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: examplestorageconnections.storage.example.io
+spec:
+  group: storage.example.io
+  names:
+    kind: ExampleStorageConnection
+    plural: examplestorageconnections
+    singular: examplestorageconnection
+    categories:
+      - d8-storage
+      - d8-storage-connections
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Backend
+          type: string
+          jsonPath: .status.conditions[?(@.type=="BackendReady")].status
+        - name: Reason
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].reason
+        - name: Address
+          type: string
+          jsonPath: .spec.controlPlane.address
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+          priority: 1
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                controlPlane:
+                  type: object
+                  properties:
+                    address:
+                      type: string
+                    username:
+                      type: string
+                    password:
+                      type: string
+                      x-kubernetes-sensitive-data: true
+                    tls:
+                      type: object
+                      properties:
+                        ca:
+                          type: string
+                dataPlane:
+                  type: object
+                  properties:
+                    iscsi:
+                      type: object
+                      properties:
+                        chap:
+                          type: object
+                          properties:
+                            username:
+                              type: string
+                            secret:
+                              type: string
+                              x-kubernetes-sensitive-data: true
+                            targetUsername:
+                              type: string
+                            targetSecret:
+                              type: string
+                              x-kubernetes-sensitive-data: true
+                    nodeSelector:
+                      type: object
+                      properties:
+                        matchExpressions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key:
+                                type: string
+                        matchLabels:
+                          type: object
+                          additionalProperties:
+                            type: string
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
