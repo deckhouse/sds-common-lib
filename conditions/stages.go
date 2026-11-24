@@ -61,6 +61,21 @@ type Stages struct {
 	// Unknown either way: it says the controller looked and could not tell,
 	// which is evidence, unlike the absence of a condition.
 	SkipMissing bool
+
+	// PropagateStageReason has a False aggregate carry the reason of the first
+	// stage that is False, instead of [Stages.Failed].
+	//
+	// The default folds every failure into one reason, which is what the modules
+	// that already use this type publish and alert on, so it stays the default.
+	// A resource whose stages fail for reasons an operator acts on differently —
+	// a storage connection whose backend is unreachable, or refuses the
+	// credentials — sets this, so that Ready says AuthenticationFailed rather
+	// than ReconcileFailed and one alert on Ready is enough.
+	//
+	// A stage that is False only because an earlier one did not pass carries
+	// [Stages.Blocked]; the aggregate never stops at such a stage, because the
+	// first stage that is not True is always the one that did not pass.
+	PropagateStageReason bool
 }
 
 // Validate reports what is wrong with the stage set, or nil when it is usable.
@@ -227,6 +242,9 @@ func (s Stages) ReadyCondition(conds []metav1.Condition, generation int64) metav
 			}
 		default:
 			cond.Reason = s.failed()
+			if s.PropagateStageReason && c.Reason != "" {
+				cond.Reason = c.Reason
+			}
 			if c.Message != "" {
 				cond.Message = t + ": " + c.Message
 			}

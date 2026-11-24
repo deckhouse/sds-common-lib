@@ -93,6 +93,11 @@ const (
 	// ReasonDeleting is set on Ready=False while the resource is being torn
 	// down after a deletion request.
 	ReasonDeleting = "Deleting"
+	// ReasonInUse is set on Ready=False while the deletion of a resource is
+	// held back because other objects still depend on it — a storage class on
+	// its connection, a volume on its class. The dependents are named in
+	// condition.message.
+	ReasonInUse = "InUse"
 )
 
 // Set adds or updates cond in conds and reports whether anything changed.
