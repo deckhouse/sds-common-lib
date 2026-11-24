@@ -3,10 +3,11 @@
 //
 // It carries the metric storage every binary builds the same way and the
 // endpoint that serves it. Metrics specific to one module stay in that module
-// and are declared on the same storage; the one family the fleet has in common
-// that nothing else provides -- a CSI driver's gRPC operations -- lives in the
-// csimetrics subpackage, so that google.golang.org/grpc stays out of the build
-// of every module that wants only the endpoint.
+// and are declared on the same storage. The families the fleet has in common
+// that nothing else provides live in subpackages: a CSI driver's gRPC
+// operations in csimetrics, so that google.golang.org/grpc stays out of the
+// build of every module that wants only the endpoint, and the readiness of a
+// module's resources, which the NotReady alerts read, in readiness.
 //
 // There is deliberately no reconcile recorder here. controller-runtime already
 // exports controller_runtime_reconcile_total{controller,result} — with result
