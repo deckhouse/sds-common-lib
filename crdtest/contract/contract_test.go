@@ -100,6 +100,48 @@ func TestRoleDecidesTheCategoriesAndColumns(t *testing.T) {
 	}, messages(vs))
 }
 
+func TestExcept(t *testing.T) {
+	vs, err := contract.Check(crds, contract.Resource{
+		Kind: "BrokenStorageConnection",
+		Role: contract.Connection,
+		Except: []contract.Exception{
+			{Rule: contract.RuleCredentials, Field: "spec.credentialsSecretName"},
+			{Rule: contract.RuleMetadata, Field: contract.ColumnBackend},
+			{Rule: contract.RuleMetadata, Field: "lvg"},
+			{Rule: contract.RuleCredentials, Field: "spec.password.secretName"},
+			{Rule: contract.RuleStatus, Field: contract.ColumnBackend},
+		},
+	})
+	require.NoError(t, err)
+
+	got := messages(vs)
+	for _, gone := range []string{
+		"BrokenStorageConnection v1alpha1: R3: spec.credentialsSecretName refers to a Secret; credentials are fields of the resource marked x-kubernetes-sensitive-data",
+		"BrokenStorageConnection v1alpha1: R6: column Backend is missing",
+		"BrokenStorageConnection: R6: short name lvg is already taken by LVMVolumeGroup",
+	} {
+		assert.NotContains(t, got, gone)
+	}
+	assert.Contains(t, got, "BrokenStorageConnection v1alpha1: R3: spec.password holds credentials and is not marked x-kubernetes-sensitive-data: true")
+	assert.Contains(t, got, "BrokenStorageConnection: R3: exception for spec.password.secretName matches no violation; remove it from Except")
+	assert.Contains(t, got, "BrokenStorageConnection: R4: exception for Backend matches no violation; remove it from Except")
+}
+
+func TestViolationsNameTheirField(t *testing.T) {
+	vs, err := contract.Check(crds, contract.Resource{Kind: "BrokenStorageConnection", Role: contract.Connection})
+	require.NoError(t, err)
+
+	fields := map[string]string{}
+	for _, v := range vs {
+		fields[v.Message] = v.Rule + " " + v.Field
+	}
+	assert.Equal(t, "R6 d8-storage-connections", fields["category d8-storage-connections is missing from spec.names.categories [d8-storage]"])
+	assert.Equal(t, "R6 Reason", fields["column Reason has priority 1, so kubectl get shows it only with -o wide"])
+	assert.Equal(t, "R4 status", fields["the status subresource is not enabled"])
+	assert.Equal(t, "R4 status.conditions", fields["status.conditions is missing, so the Ready condition has nowhere to be"])
+	assert.Equal(t, "R3 spec.password", fields["spec.password holds credentials and is not marked x-kubernetes-sensitive-data: true"])
+}
+
 func TestCheckErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -113,6 +155,8 @@ func TestCheckErrors(t *testing.T) {
 		{name: "no kind", paths: crds, resources: []contract.Resource{{Role: contract.Class}}},
 		{name: "unknown role", paths: crds, resources: []contract.Resource{{Kind: "ExampleStorageClass", Role: "pool"}}},
 		{name: "column that cannot be skipped", paths: crds, resources: []contract.Resource{{Kind: "ExampleStorageClass", Role: contract.Class, SkipColumns: []string{contract.ColumnReady}}}},
+		{name: "exception of an unknown rule", paths: crds, resources: []contract.Resource{{Kind: "ExampleStorageClass", Role: contract.Class, Except: []contract.Exception{{Rule: "R9", Field: "spec"}}}}},
+		{name: "exception without a field", paths: crds, resources: []contract.Resource{{Kind: "ExampleStorageClass", Role: contract.Class, Except: []contract.Exception{{Rule: contract.RuleCredentials}}}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := contract.Check(tc.paths, tc.resources...)

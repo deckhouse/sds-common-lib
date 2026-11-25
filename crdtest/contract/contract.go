@@ -28,6 +28,12 @@ limitations under the License.
 //			contract.Resource{Kind: "HPEStorageClass", Role: contract.Class},
 //		)
 //	}
+//
+// A kind not yet brought to the contract lists what it is allowed to break in
+// Resource.Except, by rule and field:
+//
+//	contract.Resource{Kind: "MindUstorStorageConnection", Role: contract.Connection,
+//		Except: []contract.Exception{{Rule: contract.RuleCredentials, Field: "spec.controlPlane.credentialsSecretName"}}}
 package contract
 
 import (
@@ -112,13 +118,35 @@ type Resource struct {
 	// NotSensitive are spec fields the check takes for credentials by their
 	// name and that are not.
 	NotSensitive []string
+
+	// Except are violations the kind is allowed to have until it is brought
+	// to the contract. An exception that matches no violation is a violation
+	// itself, so it goes once the kind conforms.
+	Except []Exception
 }
 
-// Violation is one place where a CRD departs from the contract.
+// Exception lets through the violations of Rule at Field in every served
+// version, such as {Rule: "R3", Field: "spec.credentialsSecretName"}.
+type Exception struct {
+	Rule  string
+	Field string
+}
+
+// Rules of the contract a Violation names.
+const (
+	RuleCredentials = "R3"
+	RuleStatus      = "R4"
+	RuleMetadata    = "R6"
+)
+
+// Violation is one place where a CRD departs from the contract. Field is
+// what it is about: a category, a short name, a column, a schema path such as
+// spec.auth.password, or status.
 type Violation struct {
 	Kind    string
 	Version string
 	Rule    string
+	Field   string
 	Message string
 }
 
@@ -178,6 +206,11 @@ func (r Resource) validate() error {
 	if r.Role != Connection && r.Role != Class {
 		return fmt.Errorf("contract: %s: role %q is neither %q nor %q", r.Kind, r.Role, Connection, Class)
 	}
+	for _, e := range r.Except {
+		if !slices.Contains([]string{RuleCredentials, RuleStatus, RuleMetadata}, e.Rule) || e.Field == "" {
+			return fmt.Errorf("contract: %s: exception %+v needs a rule of %s, %s or %s and a field", r.Kind, e, RuleCredentials, RuleStatus, RuleMetadata)
+		}
+	}
 	for _, col := range r.SkipColumns {
 		if !slices.Contains(SkippableColumns, col) {
 			return fmt.Errorf("contract: %s: column %s cannot be skipped, only %v", r.Kind, col, SkippableColumns)
@@ -188,13 +221,13 @@ func (r Resource) validate() error {
 
 func (r Resource) check(c *crd) []Violation {
 	var out []Violation
-	add := func(version, rule, format string, args ...any) {
-		out = append(out, Violation{Kind: r.Kind, Version: version, Rule: rule, Message: fmt.Sprintf(format, args...)})
+	add := func(version, rule, field, format string, args ...any) {
+		out = append(out, Violation{Kind: r.Kind, Version: version, Rule: rule, Field: field, Message: fmt.Sprintf(format, args...)})
 	}
 
 	for _, cat := range r.categories() {
 		if !slices.Contains(c.Spec.Names.Categories, cat) {
-			add("", "R6", "category %s is missing from spec.names.categories %v", cat, c.Spec.Names.Categories)
+			add("", RuleMetadata, cat, "category %s is missing from spec.names.categories %v", cat, c.Spec.Names.Categories)
 		}
 	}
 
@@ -202,9 +235,9 @@ func (r Resource) check(c *crd) []Violation {
 		owner, known := StorageShortNames[short]
 		switch {
 		case !known:
-			add("", "R6", "short name %s is not in StorageShortNames; register it in sds-common-lib, where its uniqueness is checked", short)
+			add("", RuleMetadata, short, "short name %s is not in StorageShortNames; register it in sds-common-lib, where its uniqueness is checked", short)
 		case owner != r.Kind:
-			add("", "R6", "short name %s is already taken by %s", short, owner)
+			add("", RuleMetadata, short, "short name %s is already taken by %s", short, owner)
 		}
 	}
 
@@ -212,9 +245,29 @@ func (r Resource) check(c *crd) []Violation {
 		if !v.Served {
 			continue
 		}
-		r.checkColumns(v, func(format string, args ...any) { add(v.Name, "R6", format, args...) })
-		checkStatus(v, func(format string, args ...any) { add(v.Name, "R4", format, args...) })
-		r.checkCredentials(v, func(format string, args ...any) { add(v.Name, "R3", format, args...) })
+		r.checkColumns(v, func(field, format string, args ...any) { add(v.Name, RuleMetadata, field, format, args...) })
+		checkStatus(v, func(field, format string, args ...any) { add(v.Name, RuleStatus, field, format, args...) })
+		r.checkCredentials(v, func(field, format string, args ...any) { add(v.Name, RuleCredentials, field, format, args...) })
+	}
+	return r.except(out)
+}
+
+func (r Resource) except(vs []Violation) []Violation {
+	used := make([]bool, len(r.Except))
+	out := vs[:0]
+	for _, v := range vs {
+		i := slices.IndexFunc(r.Except, func(e Exception) bool { return e.Rule == v.Rule && e.Field == v.Field })
+		if i < 0 {
+			out = append(out, v)
+			continue
+		}
+		used[i] = true
+	}
+	for i, e := range r.Except {
+		if !used[i] {
+			out = append(out, Violation{Kind: r.Kind, Rule: e.Rule, Field: e.Field,
+				Message: fmt.Sprintf("exception for %s matches no violation; remove it from Except", e.Field)})
+		}
 	}
 	return out
 }
@@ -243,7 +296,7 @@ var columnJSONPaths = map[string]string{
 	ColumnAge:     AgeJSONPath,
 }
 
-func (r Resource) checkColumns(v version, add func(string, ...any)) {
+func (r Resource) checkColumns(v version, add func(string, string, ...any)) {
 	byName := make(map[string]apiextensionsv1.CustomResourceColumnDefinition, len(v.AdditionalPrinterColumns))
 	for _, col := range v.AdditionalPrinterColumns {
 		byName[strings.ToLower(col.Name)] = col
@@ -252,48 +305,48 @@ func (r Resource) checkColumns(v version, add func(string, ...any)) {
 	for _, name := range r.columns() {
 		col, ok := byName[strings.ToLower(name)]
 		if !ok {
-			add("column %s is missing", name)
+			add(name, "column %s is missing", name)
 			continue
 		}
 		if col.Priority != 0 {
-			add("column %s has priority %d, so kubectl get shows it only with -o wide", name, col.Priority)
+			add(name, "column %s has priority %d, so kubectl get shows it only with -o wide", name, col.Priority)
 		}
 		if want, ok := columnJSONPaths[name]; ok && strings.ReplaceAll(col.JSONPath, "'", `"`) != want {
-			add("column %s reads %s, not %s", name, col.JSONPath, want)
+			add(name, "column %s reads %s, not %s", name, col.JSONPath, want)
 		}
 		if name == ColumnAge && col.Type != "date" {
-			add("column %s has type %s, not date", name, col.Type)
+			add(name, "column %s has type %s, not date", name, col.Type)
 		}
 	}
 
 	if col, ok := byName[strings.ToLower(ColumnPhase)]; ok && col.Priority == 0 {
-		add("column %s has priority 0; it is shown only with -o wide (priority: 1)", ColumnPhase)
+		add(ColumnPhase, "column %s has priority 0; it is shown only with -o wide (priority: 1)", ColumnPhase)
 	}
 }
 
-func checkStatus(v version, add func(string, ...any)) {
+func checkStatus(v version, add func(string, string, ...any)) {
 	if v.Subresources == nil || v.Subresources.Status == nil {
-		add("the status subresource is not enabled")
+		add("status", "the status subresource is not enabled")
 	}
 
 	conds := child(v.Schema.OpenAPIV3Schema, "status", "conditions")
 	if conds == nil {
-		add("status.conditions is missing, so the Ready condition has nowhere to be")
+		add("status.conditions", "status.conditions is missing, so the Ready condition has nowhere to be")
 		return
 	}
 	if conds["type"] != "array" {
-		add("status.conditions is of type %v, not array", conds["type"])
+		add("status.conditions", "status.conditions is of type %v, not array", conds["type"])
 		return
 	}
 	item, _ := conds["items"].(map[string]any)
 	for _, field := range []string{"type", "status", "reason", "message"} {
 		if child(item, field) == nil {
-			add("status.conditions[].%s is missing", field)
+			add("status.conditions[]."+field, "status.conditions[].%s is missing", field)
 		}
 	}
 }
 
-func (r Resource) checkCredentials(v version, add func(string, ...any)) {
+func (r Resource) checkCredentials(v version, add func(string, string, ...any)) {
 	spec := child(v.Schema.OpenAPIV3Schema, "spec")
 	if spec == nil {
 		return
@@ -303,18 +356,18 @@ func (r Resource) checkCredentials(v version, add func(string, ...any)) {
 	walk(spec, "spec", func(path, name string, node map[string]any) {
 		found[path] = true
 		if secretRefName.MatchString(name) {
-			add("%s refers to a Secret; credentials are fields of the resource marked %s", path, SensitiveDataKey)
+			add(path, "%s refers to a Secret; credentials are fields of the resource marked %s", path, SensitiveDataKey)
 			return
 		}
 		credential := (credentialName.MatchString(name) || slices.Contains(r.Sensitive, path)) && !slices.Contains(r.NotSensitive, path)
 		if credential && node[SensitiveDataKey] != true {
-			add("%s holds credentials and is not marked %s: true", path, SensitiveDataKey)
+			add(path, "%s holds credentials and is not marked %s: true", path, SensitiveDataKey)
 		}
 	})
 
 	for _, path := range r.Sensitive {
 		if !found[path] {
-			add("%s is listed in Sensitive and is not in the schema", path)
+			add(path, "%s is listed in Sensitive and is not in the schema", path)
 		}
 	}
 }
